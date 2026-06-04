@@ -70,7 +70,7 @@ function escapeSqlStr(s) {
   return String(s == null ? '' : s).replace(/'/g, "''");
 }
 
-async function executeSqlViaApi(sql, config) {
+async function executeSqlViaApi(sql, config, externalSignal) {
   if (!config || !config.apiUrl || !config.apiAuthKey)
     throw new Error('ยังไม่ได้เชื่อมต่อ BMS Session');
 
@@ -80,12 +80,19 @@ async function executeSqlViaApi(sql, config) {
   const ctrl  = typeof AbortController !== 'undefined' ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
 
+  // ให้ external signal (จาก caller) สามารถยกเลิก request ได้ด้วย
+  if (ctrl && externalSignal) {
+    if (externalSignal.aborted) ctrl.abort();
+    else externalSignal.addEventListener('abort', () => ctrl.abort(), { once: true });
+  }
+
   try {
     const res = await fetch(url, {
       headers: { Authorization: 'Bearer ' + config.apiAuthKey },
       ...(ctrl ? { signal: ctrl.signal } : {}),
     });
     if (res.status === 401) throw new Error('Session หมดอายุหรือไม่ถูกต้อง (401)');
+    if (res.status === 409) throw new Error('__CONFLICT__');
     if (res.status === 502) throw new Error('ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (502)');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();

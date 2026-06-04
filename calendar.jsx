@@ -19,8 +19,8 @@ function TimeGutter() {
 }
 
 function ApptCard({ a, rowH, onClick }) {
-  const s = svc(a.serviceId);
-  const st = STATUSES[a.status];
+  const s = svc(a.serviceId) || { name: a.serviceId || '—', dur: 60, price: 0 };
+  const st = STATUSES[a.status] || STATUSES["booked"];
   const top = ((a.start - OPEN_MIN) / SLOT) * rowH;
   const height = (s.dur / SLOT) * rowH - 4;
   const cancelled = a.status === "cancelled";
@@ -68,7 +68,7 @@ function TherapistColumn({ t, appts, rowH, onSlot, onAppt }) {
     const m = OPEN_MIN + slot * SLOT;
     // occupied?
     const occupied = appts.some(a => {
-      const sv = svc(a.serviceId);
+      const sv = svc(a.serviceId) || { dur: 60 };
       return a.status !== "cancelled" && m >= a.start && m < a.start + sv.dur;
     });
     setHover(occupied ? null : m);

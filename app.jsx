@@ -709,7 +709,9 @@ function App() {
   const [t, setTweak]       = useTweaks(TWEAK_DEFAULTS);
   const todayKey             = useMemo(() => dayKey(new Date()), []);
   const [date, setDate]      = useState(() => new Date());
-  const [appts, setAppts]    = useState({});
+  const [appts, setAppts]    = useState(() => {
+    try { const s = localStorage.getItem('thai_appts'); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
   const [filter, setFilter]  = useState("all");
   const [query, setQuery]    = useState("");
   const [collapsed, setCollapsed] = useState(false);
@@ -761,6 +763,11 @@ function App() {
       return { ...p, [key]: useReal ? [] : genDay(date, todayKey) };
     });
   }, [key, therapistStatus]);
+
+  // บันทึกนัดทั้งหมดลง localStorage ทุกครั้งที่เปลี่ยน
+  useEffect(() => {
+    try { localStorage.setItem('thai_appts', JSON.stringify(appts)); } catch {}
+  }, [appts]);
 
   // Keep global svc() in sync — ค้นหาจาก HOSxP items ก่อน แล้ว fallback mock
   useEffect(() => {
@@ -1002,11 +1009,21 @@ function App() {
     setTherapistStatus("mock");
   };
 
-  const executeQuery = async (sql) => {
+  const executeQuery = async (sql, signal, _retry = 0) => {
     try {
-      const data = await executeSqlViaApi(sql, bms.config);
+      const data = await executeSqlViaApi(sql, bms.config, signal);
       return { ok: true, data };
     } catch (e) {
+      if (e.name === 'AbortError') return { ok: false, aborted: true, error: '' };
+      // 409 Conflict: HOSxP ยังประมวลผล request เดิมอยู่ — retry 1 ครั้งหลัง 600ms
+      if (e.message === '__CONFLICT__') {
+        if (_retry < 1) {
+          await new Promise(r => setTimeout(r, 600));
+          if (signal && signal.aborted) return { ok: false, aborted: true, error: '' };
+          return executeQuery(sql, signal, _retry + 1);
+        }
+        return { ok: false, error: 'HOSxP ไม่ว่าง กรุณาพิมพ์ใหม่อีกครั้ง' };
+      }
       return { ok: false, error: e.message };
     }
   };
@@ -1064,7 +1081,7 @@ function App() {
   );
   const rowH = t.density === "compact" ? 46 : t.density === "comfy" ? 70 : 58;
   const activeAppts = list.filter(a => a.status !== "cancelled");
-  const revenue  = activeAppts.filter(a => a.status === "done").reduce((s, a) => s + svc(a.serviceId).price, 0);
+  const revenue  = activeAppts.filter(a => a.status === "done").reduce((s, a) => s + (svc(a.serviceId)?.price || 0), 0);
   const upcoming = activeAppts.filter(a => a.status === "booked" || a.status === "confirmed").length;
   const inHouse  = activeAppts.filter(a => a.status === "arrived" || a.status === "service").length;
   const shiftDay = (d) => { const nd = new Date(date); nd.setDate(nd.getDate() + d); setDate(nd); };
@@ -1208,6 +1225,7 @@ function App() {
         services={activeServices}
         onClose={() => setBooking(null)} onSave={saveAppt}
         executeQuery={executeQuery}
+        vstdate={key}
       />
       <DetailPanel
         open={!!selected} appt={selectedAppt}

@@ -24,19 +24,47 @@ function sexLabel(sex) {
   return sex || '';
 }
 
-function PatientAutocomplete({ executeQuery, value, onChange, onSelect }) {
+function calcAge(birthday) {
+  if (!birthday) return '';
+  const dob = new Date(birthday);
+  if (isNaN(dob.getTime())) return '';
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+  return age >= 0 ? `${age} ปี` : '';
+}
+
+function highlightText(text, query) {
+  if (!query || !text) return text;
+  const words = query.trim().split(/\s+/).filter(Boolean);
+  const pat = words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const parts = String(text).split(new RegExp(`(${pat})`, 'gi'));
+  return parts.map((part, i) =>
+    words.some(w => part.toLowerCase() === w.toLowerCase())
+      ? <mark key={i} style={{ background: '#fef3c7', color: '#92400e', borderRadius: 2, padding: '0 1px' }}>{part}</mark>
+      : part
+  );
+}
+
+function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate }) {
   const [results,  setResults]  = useState([]);
   const [loading,  setLoading]  = useState(false);
   const [showDrop, setShowDrop] = useState(false);
   const [errMsg,   setErrMsg]   = useState('');
-  const timerRef = useRef(null);
+  const [query,    setQuery]    = useState('');
+  const timerRef        = useRef(null);
+  const abortRef        = useRef(null);
+  const justSelectedRef = useRef(false);
+  const wrapperRef      = useRef(null);
 
-  // debounce: ค้นหาอัตโนมัติ 450ms หลังพิมพ์หยุด
   useEffect(() => {
+    if (justSelectedRef.current) { justSelectedRef.current = false; return; }
     if (timerRef.current) clearTimeout(timerRef.current);
     const q = value.trim();
     if (q.length < 2) {
-      setResults([]); setShowDrop(false); setErrMsg('');
+      if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+      setResults([]); setShowDrop(false); setErrMsg(''); setQuery('');
       return;
     }
     timerRef.current = setTimeout(() => doSearch(q), 450);
@@ -44,29 +72,43 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect }) {
   }, [value]);
 
   const doSearch = async (q) => {
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    abortRef.current = ctrl;
+    setQuery(q);
     setLoading(true); setErrMsg('');
 
-    // แยกคำค้นหาเมื่อมีช่องว่าง เช่น "วีรวัฒน์ ร้องรอย" → ค้น fname+lname แยกกัน
     const words = q.trim().split(/\s+/).filter(Boolean);
-    const nameCond = words
-      .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
-      .join(' AND ');
-
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
-    // ไม่ใช้ CONVERT USING (บาง HOSxP version ไม่รองรับ → HTTP 409)
-    const sql = `SELECT hn,
-  CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname,
-  sex, tel1
-FROM patient
-WHERE (${nameCond})
-   OR hn = '${qSafe}'
-   OR tel1 LIKE '%${telSafe}%'
-ORDER BY lname, fname
-LIMIT 20`;
+    let sql;
+    if (vstdate) {
+      // ค้นเฉพาะคนไข้ที่มี visit เปิดใน ovst วันที่กำลังจองเท่านั้น
+      const dateSafe = escapeSqlStr(vstdate);
+      const nameCond = words
+        .map(w => { const s = escapeSqlStr(w); return `(p.fname LIKE '%${s}%' OR p.lname LIKE '%${s}%')`; })
+        .join(' AND ');
+      const whereName = nameCond
+        ? `(${nameCond}) OR o.hn = '${qSafe}' OR p.tel1 LIKE '%${telSafe}%'`
+        : `o.hn = '${qSafe}' OR p.tel1 LIKE '%${telSafe}%'`;
+      sql = `SELECT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.tel1, p.birthday FROM ovst o JOIN patient p ON p.hn = o.hn WHERE o.vstdate = '${dateSafe}' AND (${whereName}) GROUP BY p.hn ORDER BY p.lname, p.fname LIMIT 20`;
+    } else {
+      const nameCond = words
+        .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
+        .join(' AND ');
+      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
+    }
 
-    const res = await executeQuery(sql);
+    const res = await executeQuery(sql, ctrl ? ctrl.signal : undefined);
+
+    // abort = request ถูกยกเลิกเพราะมี request ใหม่มาแทน — ไม่ต้องอัพเดท UI
+    // แต่ต้องเคลียร์ loading เฉพาะกรณีที่ไม่มี request ใหม่กำลังรอ
+    if (res.aborted) {
+      if (abortRef.current === ctrl) setLoading(false);
+      return;
+    }
+
     setLoading(false);
     if (res.ok) {
       setResults(res.data || []);
@@ -78,13 +120,22 @@ LIMIT 20`;
   };
 
   const handleSelect = (p) => {
+    justSelectedRef.current = true;
     onSelect(p);
     setShowDrop(false);
     setResults([]);
   };
 
+  // คำนวณตำแหน่ง dropdown จาก ref ตรง render — ไม่ต้องเก็บ state แยก
+  // position:fixed หลุดพ้น overflow:hidden ของ modal container ได้เลย
+  let dropStyle = null;
+  if (showDrop && wrapperRef.current) {
+    const r = wrapperRef.current.getBoundingClientRect();
+    dropStyle = { position: 'fixed', top: r.bottom + 2, left: r.left, width: r.width, zIndex: 9999 };
+  }
+
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={wrapperRef} style={{ position: 'relative' }}>
       <div style={{ position: 'relative' }}>
         <input
           className="input"
@@ -92,38 +143,67 @@ LIMIT 20`;
           value={value}
           onChange={e => { onChange(e.target.value); setShowDrop(false); }}
           onFocus={() => results.length > 0 && setShowDrop(true)}
-          onBlur={() => setTimeout(() => setShowDrop(false), 180)}
+          onBlur={() => setTimeout(() => setShowDrop(false), 200)}
           autoFocus
         />
-        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+        <div style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
           color: 'var(--ink-faint)', pointerEvents: 'none' }}>
-          {loading
-            ? <Icon name="clock" size={15} />
-            : <Icon name="search" size={15} />}
+          {loading ? <Icon name="clock" size={14} /> : <Icon name="search" size={14} />}
         </div>
       </div>
 
       {errMsg && (
-        <div style={{ fontSize: 12, color: 'var(--st-cancel-ink)', padding: '5px 2px' }}>
-          {errMsg}
-        </div>
+        <div style={{ fontSize: 12, color: 'var(--st-cancel-ink)', padding: '4px 2px' }}>{errMsg}</div>
       )}
 
-      {showDrop && (
-        <div className="patient-drop">
-          {results.length === 0 && (
-            <div className="patient-drop-empty">ไม่พบข้อมูลผู้ป่วย</div>
-          )}
-          {results.map(p => (
-            <button key={p.hn} className="patient-drop-item" onMouseDown={() => handleSelect(p)}>
-              <div className="patient-drop-name">{p.fullname}</div>
-              <div className="patient-drop-meta">
-                HN {p.hn}
-                {p.sex && ` · ${sexLabel(p.sex)}`}
-                {p.tel1 && ` · ${p.tel1}`}
-              </div>
-            </button>
-          ))}
+      {/* dropdown list */}
+      {showDrop && dropStyle && (
+        <div style={{
+          ...dropStyle,
+          background: '#fff',
+          border: '1px solid #b0b8c1',
+          borderRadius: 4,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+          maxHeight: 320,
+          overflowY: 'auto',
+          fontSize: 13,
+        }}>
+          {/* header bar */}
+          <div style={{ padding: '4px 10px', background: '#e8edf2', borderBottom: '1px solid #c8d0d8',
+            fontSize: 12, fontWeight: 600, color: '#444', letterSpacing: 0.3 }}>
+            รายการ
+          </div>
+
+          {results.length === 0 ? (
+            <div style={{ padding: '10px 12px', color: '#888', fontStyle: 'italic' }}>
+              ไม่พบข้อมูลผู้ป่วย
+            </div>
+          ) : results.map((p, i) => {
+            const age  = calcAge(p.birthday);
+            const sub  = [p.hn ? `HN ${p.hn}` : '', sexLabel(p.sex), age, p.tel1 || ''].filter(Boolean).join('  ·  ');
+            return (
+              <button key={p.hn || i}
+                onMouseDown={() => handleSelect(p)}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left',
+                  padding: '7px 12px', border: 'none', background: 'none',
+                  borderBottom: '1px solid #eef0f2', cursor: 'pointer',
+                  transition: 'background .1s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e8f4fd'}
+                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+              >
+                <div style={{ fontWeight: 500, color: '#1a1a1a', lineHeight: 1.4 }}>
+                  {highlightText(p.fullname, query)}
+                </div>
+                {sub && (
+                  <div style={{ fontSize: 11.5, color: '#666', marginTop: 2, lineHeight: 1.3 }}>
+                    {highlightText(sub, query)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -132,7 +212,7 @@ LIMIT 20`;
 
 // ── Booking form (centered modal) ────────────────────────────────────────────
 
-function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp }) {
+function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp, vstdate }) {
   const serviceList = servicesProp || SERVICES;
   const [customer,   setCustomer]   = useState("");
   const [phone,      setPhone]      = useState("");
@@ -191,11 +271,6 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
             <div className="field">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                 <label>ชื่อ-สกุลลูกค้า</label>
-                {hn && (
-                  <span className="hn-badge" style={{ fontSize: 11 }}>
-                    <Icon name="users" size={12} /> HN {hn}
-                  </span>
-                )}
                 {executeQuery && !hn && (
                   <span style={{ fontSize: 11.5, color: "var(--primary)" }}>
                     ค้นหาจาก HOSxP อัตโนมัติ
@@ -208,10 +283,26 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
                   value={customer}
                   onChange={setCustomer}
                   onSelect={selectPatient}
+                  vstdate={vstdate}
                 />
               ) : (
                 <input className="input" placeholder="เช่น คุณสุภาพร ใจดี"
                   value={customer} onChange={e => setCustomer(e.target.value)} autoFocus />
+              )}
+              {hn && (
+                <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="hn-badge">
+                    <Icon name="users" size={12} /> HN {hn}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setHn(""); setCustomer(""); setPhone(""); }}
+                    style={{ fontSize: 11, color: "var(--ink-faint)", background: "none", border: "none",
+                      cursor: "pointer", padding: 0, lineHeight: 1 }}
+                    title="ล้างข้อมูลผู้ป่วย">
+                    ✕
+                  </button>
+                </div>
               )}
             </div>
 
@@ -311,8 +402,8 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
 
 function DetailPanel({ open, onClose, appt, onStatus, onCancel }) {
   if (!appt) return <Drawer open={open} onClose={onClose} title="รายละเอียดนัด"><div /></Drawer>;
-  const s = svc(appt.serviceId);
-  const t = ther(appt.therapistId);
+  const s = svc(appt.serviceId) || { name: appt.serviceId || '—', dur: 60, price: 0 };
+  const t = ther(appt.therapistId) || { name: appt.therapistId || '—', color: '#888', spec: '—' };
   const st = STATUSES[appt.status];
   return (
     <Drawer
