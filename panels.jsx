@@ -16,7 +16,7 @@ function Drawer({ open, onClose, title, children, foot }) {
   );
 }
 
-// ── Patient search (HOSxP) ────────────────────────────────────────────────────
+// ── Patient autocomplete (HOSxP patient table) ───────────────────────────────
 
 function sexLabel(sex) {
   if (sex === '1' || sex === 1 || sex === 'M') return 'ชาย';
@@ -24,83 +24,103 @@ function sexLabel(sex) {
   return sex || '';
 }
 
-function PatientSearch({ executeQuery, onSelect }) {
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [err, setErr] = useState(null);
+function PatientAutocomplete({ executeQuery, value, onChange, onSelect }) {
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [showDrop, setShowDrop] = useState(false);
+  const [errMsg,   setErrMsg]   = useState('');
+  const timerRef = useRef(null);
 
-  const search = async () => {
-    const term = q.trim();
-    if (!term) return;
-    setLoading(true);
-    setErr(null);
-    const safe = escapeSqlStr(term);
-    const sql = `
-      SELECT hn,
-        CONCAT(pname, fname, ' ', lname) AS fullname,
-        sex, birthday, tel1
-      FROM patient
-      WHERE fname  LIKE '%${safe}%'
-         OR lname  LIKE '%${safe}%'
-         OR hn      = '${safe}'
-         OR tel1   LIKE '%${safe}%'
-      ORDER BY lname, fname
-      LIMIT 20
-    `;
+  // debounce: ค้นหาอัตโนมัติ 450ms หลังพิมพ์หยุด
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const q = value.trim();
+    if (q.length < 2) {
+      setResults([]); setShowDrop(false); setErrMsg('');
+      return;
+    }
+    timerRef.current = setTimeout(() => doSearch(q), 450);
+    return () => clearTimeout(timerRef.current);
+  }, [value]);
+
+  const doSearch = async (q) => {
+    setLoading(true); setErrMsg('');
+
+    // แยกคำค้นหาเมื่อมีช่องว่าง เช่น "วีรวัฒน์ ร้องรอย" → ค้น fname+lname แยกกัน
+    const words = q.trim().split(/\s+/).filter(Boolean);
+    const nameCond = words
+      .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
+      .join(' AND ');
+
+    const qSafe   = escapeSqlStr(q.trim());
+    const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
+
+    // ไม่ใช้ CONVERT USING (บาง HOSxP version ไม่รองรับ → HTTP 409)
+    const sql = `SELECT hn,
+  CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname,
+  sex, tel1
+FROM patient
+WHERE (${nameCond})
+   OR hn = '${qSafe}'
+   OR tel1 LIKE '%${telSafe}%'
+ORDER BY lname, fname
+LIMIT 20`;
+
     const res = await executeQuery(sql);
     setLoading(false);
-    setSearched(true);
     if (res.ok) {
       setResults(res.data || []);
+      setShowDrop(true);
     } else {
-      setErr(res.error);
-      setResults([]);
+      setErrMsg(res.error || 'ค้นหาไม่สำเร็จ');
+      setResults([]); setShowDrop(false);
     }
   };
 
+  const handleSelect = (p) => {
+    onSelect(p);
+    setShowDrop(false);
+    setResults([]);
+  };
+
   return (
-    <div className="patient-search">
-      <div className="patient-search-row">
+    <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
         <input
           className="input"
-          placeholder="ชื่อ–สกุล, HN, หรือเบอร์โทร"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && search()}
+          placeholder="พิมพ์ชื่อ-สกุล, HN หรือเบอร์โทร เพื่อค้นหา…"
+          value={value}
+          onChange={e => { onChange(e.target.value); setShowDrop(false); }}
+          onFocus={() => results.length > 0 && setShowDrop(true)}
+          onBlur={() => setTimeout(() => setShowDrop(false), 180)}
+          autoFocus
         />
-        <button
-          className="btn-ghost"
-          onClick={search}
-          disabled={loading || !q.trim()}
-          style={{ whiteSpace: 'nowrap', flex: 'none' }}
-        >
-          {loading ? '…' : <><Icon name="search" size={14} /> ค้นหา</>}
-        </button>
+        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          color: 'var(--ink-faint)', pointerEvents: 'none' }}>
+          {loading
+            ? <Icon name="clock" size={15} />
+            : <Icon name="search" size={15} />}
+        </div>
       </div>
 
-      {err && (
-        <div style={{ color: 'var(--st-cancel-ink)', fontSize: 12.5, padding: '6px 2px' }}>
-          <Icon name="close" size={13} /> {err}
+      {errMsg && (
+        <div style={{ fontSize: 12, color: 'var(--st-cancel-ink)', padding: '5px 2px' }}>
+          {errMsg}
         </div>
       )}
 
-      {searched && !err && results.length === 0 && (
-        <div style={{ color: 'var(--ink-faint)', fontSize: 13, padding: '8px 0', textAlign: 'center' }}>
-          ไม่พบข้อมูลผู้ป่วย
-        </div>
-      )}
-
-      {results.length > 0 && (
-        <div className="patient-results">
+      {showDrop && (
+        <div className="patient-drop">
+          {results.length === 0 && (
+            <div className="patient-drop-empty">ไม่พบข้อมูลผู้ป่วย</div>
+          )}
           {results.map(p => (
-            <button key={p.hn} className="patient-result-item" onClick={() => onSelect(p)}>
-              <div className="patient-result-name">{p.fullname}</div>
-              <div className="patient-result-meta">
+            <button key={p.hn} className="patient-drop-item" onMouseDown={() => handleSelect(p)}>
+              <div className="patient-drop-name">{p.fullname}</div>
+              <div className="patient-drop-meta">
                 HN {p.hn}
-                {p.sex && <span> · {sexLabel(p.sex)}</span>}
-                {p.tel1 && <span> · {p.tel1}</span>}
+                {p.sex && ` · ${sexLabel(p.sex)}`}
+                {p.tel1 && ` · ${p.tel1}`}
               </div>
             </button>
           ))}
@@ -110,135 +130,180 @@ function PatientSearch({ executeQuery, onSelect }) {
   );
 }
 
-// ── Booking form ──────────────────────────────────────────────────────────────
+// ── Booking form (centered modal) ────────────────────────────────────────────
 
-function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery }) {
-  const [customer, setCustomer] = useState("");
-  const [phone, setPhone] = useState("");
-  const [hn, setHn] = useState("");
-  const [serviceId, setServiceId] = useState("thai60");
-  const [therapistId, setTherapistId] = useState(therapists[0]?.id);
-  const [start, setStart] = useState(OPEN_MIN);
-  const [note, setNote] = useState("");
-  const [showPatientSearch, setShowPatientSearch] = useState(false);
+function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp }) {
+  const serviceList = servicesProp || SERVICES;
+  const [customer,   setCustomer]   = useState("");
+  const [phone,      setPhone]      = useState("");
+  const [hn,         setHn]         = useState("");
+  const [serviceId,  setServiceId]  = useState(serviceList[0]?.id || "thai60");
+  const [therapistId,setTherapistId]= useState(therapists[0]?.id);
+  const [start,      setStart]      = useState(OPEN_MIN);
+  const [note,       setNote]       = useState("");
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     if (open && draft) {
       setTherapistId(draft.therapistId || therapists[0]?.id);
       setStart(draft.start ?? OPEN_MIN);
-      setCustomer(""); setPhone(""); setHn(""); setNote(""); setServiceId("thai60");
-      setShowPatientSearch(false);
+      // เลือกบริการแรกที่มีอยู่จริงใน serviceList
+      setServiceId(serviceList[0]?.id || "thai60");
+      setCustomer(""); setPhone(""); setHn(""); setNote("");
+      setShowSearch(false);
     }
-  }, [open, draft]);
+  }, [open, draft, serviceList.length]);
 
   const selectPatient = (p) => {
-    setCustomer(p.fullname || '');
-    setPhone(p.tel1 || '');
-    setHn(p.hn || '');
-    setShowPatientSearch(false);
+    setCustomer(p.fullname || "");
+    setPhone(p.tel1 || "");
+    setHn(p.hn || "");
+    setShowSearch(false);
   };
 
-  const s = svc(serviceId);
-  const th = ther(therapistId);
+  // ค้นหาบริการจาก serviceList (HOSxP หรือ mock) ก่อน ถ้าไม่เจอค่อย fallback svc()
+  const s   = serviceList.find(sv => sv.id === serviceId) || svc(serviceId) || serviceList[0] || {};
+  const th  = ther(therapistId) || therapists[0];
   const valid = customer.trim().length > 1;
 
   const timeOpts = [];
   for (let m = OPEN_MIN; m <= CLOSE_MIN - 30; m += SLOT) timeOpts.push(m);
 
+  if (!open) return null;
+
   return (
-    <Drawer
-      open={open} onClose={onClose} title="จองนัดใหม่"
-      foot={
-        <>
-          <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
-          <button className="btn-fill" disabled={!valid}
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card booking-modal fade-up">
+
+        {/* Header */}
+        <div className="modal-head">
+          <div className="drawer-title">จองนัดใหม่</div>
+          <button className="icon-btn" onClick={onClose}><Icon name="close" /></button>
+        </div>
+
+        {/* Body: 2 columns */}
+        <div className="booking-body">
+
+          {/* ── Left column: ข้อมูลผู้ป่วย + นัด ── */}
+          <div className="booking-left">
+
+            {/* ชื่อลูกค้า: autocomplete จาก HOSxP patient */}
+            <div className="field">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <label>ชื่อ-สกุลลูกค้า</label>
+                {hn && (
+                  <span className="hn-badge" style={{ fontSize: 11 }}>
+                    <Icon name="users" size={12} /> HN {hn}
+                  </span>
+                )}
+                {executeQuery && !hn && (
+                  <span style={{ fontSize: 11.5, color: "var(--primary)" }}>
+                    ค้นหาจาก HOSxP อัตโนมัติ
+                  </span>
+                )}
+              </div>
+              {executeQuery ? (
+                <PatientAutocomplete
+                  executeQuery={executeQuery}
+                  value={customer}
+                  onChange={setCustomer}
+                  onSelect={selectPatient}
+                />
+              ) : (
+                <input className="input" placeholder="เช่น คุณสุภาพร ใจดี"
+                  value={customer} onChange={e => setCustomer(e.target.value)} autoFocus />
+              )}
+            </div>
+
+            <div className="field">
+              <label>เบอร์โทรศัพท์</label>
+              <input className="input" placeholder="08x-xxx-xxxx"
+                value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+
+            <div className="row2">
+              <div className="field">
+                <label>หมอนวด</label>
+                <select className="select" value={therapistId} onChange={e => setTherapistId(e.target.value)}>
+                  {therapists.map(tt => (
+                    <option key={tt.id} value={tt.id}>{tt.fullname || tt.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>เวลาเริ่มต้น</label>
+                <select className="select" value={start} onChange={e => setStart(+e.target.value)}>
+                  {timeOpts.map(m => <option key={m} value={m}>{fmtMin(m)}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>หมายเหตุ / อาการ</label>
+              <textarea className="input" placeholder="เช่น ปวดบ่าไหล่ ขอแรงปานกลาง"
+                rows={3} value={note} onChange={e => setNote(e.target.value)} />
+            </div>
+
+            {/* Summary */}
+            <div className="booking-summary">
+              <div>
+                <div style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 2 }}>สรุปการจอง</div>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>
+                  {fmtMin(start)}–{fmtMin(start + (s.dur || 60))}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 2 }}>
+                  {th?.fullname || th?.name} · {s.name || "—"}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>ค่าบริการ</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: "var(--primary-deep)", lineHeight: 1 }}>
+                  {s.price ? Number(s.price).toLocaleString() : "—"}
+                </div>
+                {s.price && <div style={{ fontSize: 11, color: "var(--ink-faint)" }}>บาท</div>}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right column: เลือกบริการ ── */}
+          <div className="booking-right">
+            <div className="field">
+              <label>เลือกบริการ</label>
+              <div className="choice-grid-v">
+                {serviceList.map(sv => (
+                  <button key={sv.id} className={"choice" + (serviceId === sv.id ? " on" : "")}
+                    onClick={() => setServiceId(sv.id)}>
+                    <div className="choice-name">{sv.name}</div>
+                    <div className="choice-meta">
+                      {sv.dur && <span><Icon name="clock" size={12} /> {sv.dur} นาที</span>}
+                      {sv.price && <span style={{ fontWeight: 700 }}>{Number(sv.price).toLocaleString()}฿</span>}
+                    </div>
+                  </button>
+                ))}
+                {serviceList.length === 0 && (
+                  <div style={{ color: "var(--ink-faint)", fontSize: 13, padding: 16, textAlign: "center" }}>
+                    ไม่มีข้อมูลบริการ
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-foot" style={{ display: "flex", gap: 10 }}>
+          <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>ยกเลิก</button>
+          <button className="btn-fill"  style={{ flex: 2 }} disabled={!valid}
             onClick={() => onSave({
               customer: customer.trim(), phone, hn,
               serviceId, therapistId, start, note,
               status: "booked", gender: "ญ",
             })}>
-            ยืนยันการจอง
+            <Icon name="check" size={16} /> ยืนยันการจอง
           </button>
-        </>
-      }
-    >
-      {/* Patient lookup from HOSxP */}
-      {executeQuery && (
-        <div className="field">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label>ค้นหาผู้ป่วยจาก HOSxP</label>
-            <button
-              className="hosxp-toggle"
-              onClick={() => setShowPatientSearch(v => !v)}
-            >
-              {showPatientSearch ? 'ซ่อน' : 'เปิดการค้นหา'}
-            </button>
-          </div>
-          {showPatientSearch && (
-            <PatientSearch executeQuery={executeQuery} onSelect={selectPatient} />
-          )}
-          {hn && (
-            <div className="hn-badge">
-              <Icon name="users" size={13} /> HN {hn} — {customer}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="field">
-        <label>ชื่อลูกค้า {hn && <span style={{ color: 'var(--primary)', fontWeight: 400 }}>(จาก HOSxP)</span>}</label>
-        <input className="input" placeholder="เช่น คุณสุภาพร ใจดี" value={customer}
-          onChange={e => setCustomer(e.target.value)} autoFocus={!executeQuery} />
-      </div>
-      <div className="field">
-        <label>เบอร์โทรศัพท์</label>
-        <input className="input" placeholder="08x-xxx-xxxx" value={phone}
-          onChange={e => setPhone(e.target.value)} />
-      </div>
-
-      <div className="field">
-        <label>เลือกบริการ</label>
-        <div className="choice-grid">
-          {SERVICES.map(sv => (
-            <button key={sv.id} className={"choice" + (serviceId === sv.id ? " on" : "")}
-              onClick={() => setServiceId(sv.id)}>
-              <div className="choice-name">{sv.name}</div>
-              <div className="choice-meta"><span>{sv.dur} นาที</span><span>{sv.price}฿</span></div>
-            </button>
-          ))}
         </div>
       </div>
-
-      <div className="row2">
-        <div className="field">
-          <label>หมอนวด</label>
-          <select className="select" value={therapistId} onChange={e => setTherapistId(e.target.value)}>
-            {therapists.map(tt => <option key={tt.id} value={tt.id}>{tt.name}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label>เวลาเริ่ม</label>
-          <select className="select" value={start} onChange={e => setStart(+e.target.value)}>
-            {timeOpts.map(m => <option key={m} value={m}>{fmtMin(m)}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="field">
-        <label>หมายเหตุ / อาการ</label>
-        <textarea className="input" placeholder="เช่น ปวดบ่าไหล่ ขอแรงปานกลาง"
-          value={note} onChange={e => setNote(e.target.value)} />
-      </div>
-
-      <div style={{ background: "var(--surface-2)", borderRadius: "var(--r)", padding: "14px 16px",
-        display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>สรุป</div>
-          <div style={{ fontWeight: 600, marginTop: 2 }}>{fmtMin(start)}–{fmtMin(start + s.dur)} · {th?.name}</div>
-        </div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "var(--primary-deep)" }}>{s.price}฿</div>
-      </div>
-    </Drawer>
+    </div>
   );
 }
 
@@ -327,4 +392,110 @@ function DetailPanel({ open, onClose, appt, onStatus, onCancel }) {
   );
 }
 
-Object.assign(window, { BookingForm, DetailPanel, Drawer });
+// ── Service form (add / edit) ─────────────────────────────────────────────────
+
+const SERVICE_GROUP_SUGGESTIONS = ["นวดไทย", "อโรมา", "เท้า", "สมุนไพร", "ออฟฟิศ", "อื่นๆ"];
+
+function ServiceForm({ open, onClose, service, onSave }) {
+  const isEdit = !!service && !!service.id;
+  const [name, setName]   = useState("");
+  const [group, setGroup] = useState("");
+  const [dur, setDur]     = useState(60);
+  const [price, setPrice] = useState(300);
+  const [active, setActive] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit) {
+      setName(service.name || "");
+      setGroup(service.group || "");
+      setDur(service.dur || 60);
+      setPrice(service.price || 0);
+      setActive(service.active !== false);
+    } else {
+      setName(""); setGroup(""); setDur(60); setPrice(300); setActive(true);
+    }
+  }, [open, isEdit, service]);
+
+  const valid = name.trim().length > 0 && dur > 0 && price >= 0;
+
+  const save = () => {
+    onSave({
+      ...(service || {}),
+      id:     isEdit ? service.id : `svc_${Date.now()}`,
+      name:   name.trim(),
+      group:  group.trim() || "ทั่วไป",
+      dur, price, active,
+    });
+  };
+
+  return (
+    <Drawer
+      open={open} onClose={onClose}
+      title={isEdit ? "แก้ไขบริการ" : "เพิ่มบริการใหม่"}
+      foot={
+        <>
+          <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
+          <button className="btn-fill" disabled={!valid} onClick={save}>
+            {isEdit ? "บันทึกการแก้ไข" : "เพิ่มบริการ"}
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <label>ชื่อบริการ</label>
+        <input className="input" placeholder="เช่น นวดไทย 60 นาที" value={name}
+          onChange={e => setName(e.target.value)} autoFocus />
+      </div>
+
+      <div className="field">
+        <label>หมวดหมู่</label>
+        <input className="input" placeholder="เช่น นวดไทย, อโรมา, สมุนไพร" value={group}
+          onChange={e => setGroup(e.target.value)} list="svc-groups" />
+        <datalist id="svc-groups">
+          {SERVICE_GROUP_SUGGESTIONS.map(g => <option key={g} value={g} />)}
+        </datalist>
+      </div>
+
+      <div className="row2">
+        <div className="field">
+          <label>ระยะเวลา (นาที)</label>
+          <input className="input" type="number" min="5" step="5" value={dur}
+            onChange={e => setDur(Math.max(5, +e.target.value))} />
+        </div>
+        <div className="field">
+          <label>ราคา (บาท)</label>
+          <input className="input" type="number" min="0" step="10" value={price}
+            onChange={e => setPrice(Math.max(0, +e.target.value))} />
+        </div>
+      </div>
+
+      {/* Active toggle */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "4px 0", borderTop: "1px solid var(--line-soft)", paddingTop: 14 }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>เปิดใช้งาน</div>
+          <div style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            {active ? "บริการนี้จะปรากฏในฟอร์มจองนัด" : "บริการนี้ถูกซ่อน จะไม่ปรากฏในฟอร์มจองนัด"}
+          </div>
+        </div>
+        <button type="button" className="twk-toggle" data-on={active ? "1" : "0"}
+          role="switch" onClick={() => setActive(v => !v)}><i /></button>
+      </div>
+
+      {/* Preview card */}
+      <div style={{ background: "var(--surface-2)", borderRadius: "var(--r)", padding: "14px 16px" }}>
+        <div style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 8 }}>ตัวอย่างการแสดงผล</div>
+        <div className={"choice" + (active ? " on" : "")} style={{ pointerEvents: "none" }}>
+          <div className="choice-name">{name || "ชื่อบริการ"}</div>
+          <div className="choice-meta">
+            <span>{dur} นาที</span>
+            <span>{price.toLocaleString()}฿</span>
+          </div>
+        </div>
+      </div>
+    </Drawer>
+  );
+}
+
+Object.assign(window, { BookingForm, DetailPanel, Drawer, ServiceForm });

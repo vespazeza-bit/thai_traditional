@@ -357,6 +357,23 @@ textarea.input { resize: none; min-height: 70px; }
 }
 .session-disconnect:hover { background: var(--surface-3); color: var(--st-cancel-ink); }
 
+/* ============ patient autocomplete dropdown ============ */
+.patient-drop {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm);
+  box-shadow: var(--shadow); max-height: 260px; overflow-y: auto;
+}
+.patient-drop-item {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 14px; width: 100%; text-align: left;
+  border-bottom: 1px solid var(--line-soft); transition: background .1s; cursor: pointer;
+}
+.patient-drop-item:last-child { border-bottom: none; }
+.patient-drop-item:hover, .patient-drop-item:focus { background: var(--primary-tint); outline: none; }
+.patient-drop-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.patient-drop-meta { font-size: 12px; color: var(--ink-faint); }
+.patient-drop-empty { padding: 12px 14px; font-size: 13px; color: var(--ink-faint); text-align: center; }
+
 /* ============ patient search (booking form) ============ */
 .patient-search { display: flex; flex-direction: column; gap: 8px; }
 .patient-search-row { display: flex; gap: 8px; align-items: stretch; }
@@ -382,6 +399,176 @@ textarea.input { resize: none; min-height: 70px; }
   padding: 4px 10px; border-radius: 99px;
   background: var(--primary-soft); color: var(--primary-deep);
 }
+
+/* ============ debug / diagnostic strip ============ */
+.debug-strip {
+  display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+  background: var(--surface-2); border-radius: var(--r-sm); border: 1px solid var(--line);
+  font-size: 12.5px; overflow: hidden;
+}
+.debug-label { font-weight: 700; color: var(--ink-faint); white-space: nowrap; flex: none; }
+.debug-val { color: var(--ink-soft); font-family: ui-monospace, monospace; font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ manual config box + raw session viewer ============ */
+.manual-config-box {
+  background: var(--primary-tint); border: 1px solid var(--primary-soft);
+  border-radius: var(--r); padding: 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.manual-config-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: var(--primary-deep);
+}
+.raw-session-box {
+  margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-2); padding: 14px; overflow: auto; max-height: 300px;
+}
+.raw-section-label { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+.raw-pre { font-family: ui-monospace, monospace; font-size: 12px; color: var(--ink-soft);
+  white-space: pre; margin: 0; }
+
+/* ============ centered modal ============ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: oklch(0.3 0.02 70 / .42);
+  backdrop-filter: blur(2px);
+  padding: 24px;
+}
+.modal-card {
+  width: 660px; max-width: 100%; max-height: calc(100vh - 80px);
+  background: var(--surface); border-radius: var(--r-xl);
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.modal-head {
+  padding: 18px 24px; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  flex: none;
+}
+.modal-body { flex: 1; overflow-y: auto; padding: 24px; }
+.modal-foot { padding: 16px 24px; border-top: 1px solid var(--line); flex: none; }
+
+/* Hero section inside modal */
+.therapist-hero { display: flex; align-items: flex-start; gap: 18px; }
+.therapist-hero-name { font-size: 20px; font-weight: 700; line-height: 1.25; }
+.therapist-hero-sub { font-size: 13.5px; color: var(--ink-soft); margin-top: 4px; line-height: 1.4; }
+
+/* Key-value grid inside modal */
+.detail-kv-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: var(--r);
+  overflow: hidden;
+}
+.detail-kv-item {
+  background: var(--surface); padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.detail-kv-label {
+  font-size: 11.5px; font-weight: 600; color: var(--ink-faint);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.detail-kv-value { font-size: 14px; font-weight: 500; color: var(--ink); word-break: break-all; }
+
+/* ============ booking modal (2-column layout) ============ */
+.booking-modal { width: 860px; }
+
+.booking-body {
+  flex: 1; overflow-y: auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+}
+.booking-left {
+  padding: 22px 20px 22px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.booking-right {
+  padding: 22px 24px 22px 20px;
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+.booking-summary {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  background: var(--primary-tint); border: 1px solid var(--primary-soft);
+  border-radius: var(--r); padding: 14px 16px; margin-top: auto;
+}
+
+/* Service choice grid (vertical, fills right column) */
+.choice-grid-v {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 420px; overflow-y: auto;
+  padding-right: 4px;
+}
+.choice-grid-v .choice { text-align: left; padding: 12px 14px; }
+.choice-grid-v .choice-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; font-size: 12px; color: var(--ink-faint); margin-top: 4px;
+}
+
+/* ============ therapist registry table ============ */
+.reg-table {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  overflow: hidden;
+}
+.reg-head {
+  display: flex; align-items: center;
+  background: var(--surface-2); border-bottom: 1px solid var(--line);
+  padding: 0 6px;
+  font-size: 12px; font-weight: 700; color: var(--ink-faint);
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.reg-row {
+  display: flex; align-items: center; padding: 0 6px;
+  border-bottom: 1px solid var(--line-soft); cursor: pointer;
+  transition: background .1s;
+}
+.reg-row:last-child { border-bottom: none; }
+.reg-row:hover { background: var(--primary-tint); }
+.reg-cell { padding: 12px 10px; }
+.reg-num     { width: 44px; flex: none; text-align: center; color: var(--ink-faint); }
+.reg-name    { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+.reg-license { width: 180px; flex: none; }
+.reg-spec    { flex: 1; min-width: 0; }
+.reg-action  { width: 36px; flex: none; color: var(--ink-faint); display: flex; justify-content: center; }
+
+/* ============ services management page ============ */
+.svc-content {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+.svc-group-label {
+  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 10px;
+}
+.svc-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px;
+}
+.svc-card {
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--r);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+  transition: border-color .14s, box-shadow .14s;
+}
+.svc-card:hover { border-color: var(--ink-faint); box-shadow: var(--shadow-sm); }
+.svc-card.inactive { opacity: .5; filter: saturate(.25); }
+.svc-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.svc-card-name { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.svc-card-actions { display: flex; gap: 2px; flex: none; }
+.svc-card-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; color: var(--ink-faint);
+}
+.svc-card-price { font-size: 15px; font-weight: 700; color: var(--primary-deep); }
+.svc-inactive-badge {
+  display: inline-flex; align-items: center; font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 99px;
+  background: var(--st-cancel-bg); color: var(--st-cancel-ink);
+}
+.svc-btn-off { color: var(--st-cancel-ink) !important; }
+.svc-btn-on  { color: var(--st-confirm-ink) !important; }
 
 /* HOSxP toggle button (booking form label row) */
 .hosxp-toggle {
