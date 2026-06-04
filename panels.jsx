@@ -67,7 +67,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       setResults([]); setShowDrop(false); setErrMsg(''); setQuery('');
       return;
     }
-    timerRef.current = setTimeout(() => doSearch(q), 450);
+    timerRef.current = setTimeout(() => doSearch(q), 800);
     return () => clearTimeout(timerRef.current);
   }, [value]);
 
@@ -84,15 +84,15 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
     let sql;
     if (vstdate) {
-      // ค้นเฉพาะคนไข้ที่มี visit เปิดใน ovst วันที่กำลังจองเท่านั้น
+      // ค้นเฉพาะคนไข้ที่มี visit ใน ovst วันที่จอง — ใช้ EXISTS แทน JOIN เพื่อลด load
       const dateSafe = escapeSqlStr(vstdate);
       const nameCond = words
-        .map(w => { const s = escapeSqlStr(w); return `(p.fname LIKE '%${s}%' OR p.lname LIKE '%${s}%')`; })
+        .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
         .join(' AND ');
-      const whereName = nameCond
-        ? `(${nameCond}) OR o.hn = '${qSafe}' OR p.tel1 LIKE '%${telSafe}%'`
-        : `o.hn = '${qSafe}' OR p.tel1 LIKE '%${telSafe}%'`;
-      sql = `SELECT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.tel1, p.birthday FROM ovst o JOIN patient p ON p.hn = o.hn WHERE o.vstdate = '${dateSafe}' AND (${whereName}) GROUP BY p.hn ORDER BY p.lname, p.fname LIMIT 20`;
+      const nameWhere = nameCond
+        ? `(${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%'`
+        : `hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%'`;
+      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1, birthday FROM patient WHERE EXISTS (SELECT 1 FROM ovst WHERE ovst.hn = patient.hn AND ovst.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY lname, fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })

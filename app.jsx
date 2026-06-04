@@ -1017,12 +1017,12 @@ function App() {
       if (e.name === 'AbortError') return { ok: false, aborted: true, error: '' };
       // 409 Conflict: HOSxP ยังประมวลผล request เดิมอยู่ — retry 1 ครั้งหลัง 600ms
       if (e.message === '__CONFLICT__') {
-        if (_retry < 1) {
-          await new Promise(r => setTimeout(r, 600));
+        if (_retry < 2) {
+          await new Promise(r => setTimeout(r, 1000 + _retry * 500));
           if (signal && signal.aborted) return { ok: false, aborted: true, error: '' };
           return executeQuery(sql, signal, _retry + 1);
         }
-        return { ok: false, error: 'HOSxP ไม่ว่าง กรุณาพิมพ์ใหม่อีกครั้ง' };
+        return { ok: false, error: 'HOSxP ไม่ว่าง กรุณารอแล้วพิมพ์ใหม่' };
       }
       return { ok: false, error: e.message };
     }
