@@ -90,7 +90,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       const nameWhere = nameCond
         ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
         : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
-      sql = `SELECT DISTINCT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.mobile_phone_number, e.name AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn INNER JOIN pttype e ON e.pttype = v.pttype WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
+      sql = `SELECT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.mobile_phone_number, MIN(e.name) AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn AND v.vstdate = '${dateSafe}' INNER JOIN pttype e ON e.pttype = v.pttype WHERE (${nameWhere}) GROUP BY p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number ORDER BY p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
