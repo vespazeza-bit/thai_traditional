@@ -81,7 +81,11 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
-    // ดึง pname/fname/lname แยกกันเพื่อป้องกัน encoding เพี้ยนจาก CONCAT ใน SQL
+    // CONVERT(CAST(x AS BINARY) USING utf8mb4):
+    //   CAST AS BINARY → raw bytes ไม่ผ่าน charset conversion ของ MySQL
+    //   CONVERT USING utf8mb4 → อ่าน bytes นั้นเป็น UTF-8 ใหม่
+    // แก้กรณีที่ patient table เก็บ TIS-620 ใน column ที่ declare charset ผิด
+    const cvt = col => `CONVERT(CAST(${col} AS BINARY) USING utf8mb4)`;
     let sql;
     if (vstdate) {
       const dateSafe = escapeSqlStr(vstdate);
@@ -91,12 +95,12 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       const nameWhere = nameCond
         ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
         : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
-      sql = `SELECT p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number, p.birthday FROM patient p WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
+      sql = `SELECT p.hn, ${cvt('p.pname')} AS pname, ${cvt('p.fname')} AS fname, ${cvt('p.lname')} AS lname, p.sex, p.mobile_phone_number, p.birthday FROM patient p WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
         .join(' AND ');
-      sql = `SELECT hn, pname, fname, lname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
+      sql = `SELECT hn, ${cvt('pname')} AS pname, ${cvt('fname')} AS fname, ${cvt('lname')} AS lname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
     }
 
     const res = await executeQuery(sql, ctrl ? ctrl.signal : undefined);
