@@ -18,6 +18,32 @@ function Drawer({ open, onClose, title, children, foot }) {
 
 // ── Patient autocomplete (HOSxP patient table) ───────────────────────────────
 
+// TIS-620 → Unicode decoder สำหรับ patient.fname / lname ที่เก็บ charset ผิด
+const TIS620_MAP = {
+  0xA0:0x00A0,0xA1:0x0E01,0xA2:0x0E02,0xA3:0x0E03,0xA4:0x0E04,0xA5:0x0E05,0xA6:0x0E06,0xA7:0x0E07,
+  0xA8:0x0E08,0xA9:0x0E09,0xAA:0x0E0A,0xAB:0x0E0B,0xAC:0x0E0C,0xAD:0x0E0D,0xAE:0x0E0E,0xAF:0x0E0F,
+  0xB0:0x0E10,0xB1:0x0E11,0xB2:0x0E12,0xB3:0x0E13,0xB4:0x0E14,0xB5:0x0E15,0xB6:0x0E16,0xB7:0x0E17,
+  0xB8:0x0E18,0xB9:0x0E19,0xBA:0x0E1A,0xBB:0x0E1B,0xBC:0x0E1C,0xBD:0x0E1D,0xBE:0x0E1E,0xBF:0x0E1F,
+  0xC0:0x0E20,0xC1:0x0E21,0xC2:0x0E22,0xC3:0x0E23,0xC4:0x0E24,0xC5:0x0E25,0xC6:0x0E26,0xC7:0x0E27,
+  0xC8:0x0E28,0xC9:0x0E29,0xCA:0x0E2A,0xCB:0x0E2B,0xCC:0x0E2C,0xCD:0x0E2D,0xCE:0x0E2E,0xCF:0x0E2F,
+  0xD0:0x0E30,0xD1:0x0E31,0xD2:0x0E32,0xD3:0x0E33,0xD4:0x0E34,0xD5:0x0E35,0xD6:0x0E36,0xD7:0x0E37,
+  0xD8:0x0E38,0xD9:0x0E39,0xDA:0x0E3A,0xDF:0x0E3F,
+  0xE0:0x0E40,0xE1:0x0E41,0xE2:0x0E42,0xE3:0x0E43,0xE4:0x0E44,0xE5:0x0E45,0xE6:0x0E46,0xE7:0x0E47,
+  0xE8:0x0E48,0xE9:0x0E49,0xEA:0x0E4A,0xEB:0x0E4B,0xEC:0x0E4C,0xED:0x0E4D,0xEE:0x0E4E,0xEF:0x0E4F,
+  0xF0:0x0E50,0xF1:0x0E51,0xF2:0x0E52,0xF3:0x0E53,0xF4:0x0E54,0xF5:0x0E55,0xF6:0x0E56,0xF7:0x0E57,
+  0xF8:0x0E58,0xF9:0x0E59,0xFA:0x0E5A,0xFB:0x0E5B,
+};
+function decodeTIS620(hex) {
+  if (!hex) return '';
+  let out = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    const b = parseInt(hex.slice(i, i + 2), 16);
+    if (b < 0x80) out += String.fromCharCode(b);
+    else if (TIS620_MAP[b]) out += String.fromCharCode(TIS620_MAP[b]);
+  }
+  return out;
+}
+
 function sexLabel(sex) {
   if (sex === '1' || sex === 1 || sex === 'M') return 'ชาย';
   if (sex === '2' || sex === 2 || sex === 'F') return 'หญิง';
@@ -81,6 +107,9 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
+    // HEX(CAST(col AS BINARY)) → raw bytes ไม่ผ่าน charset conversion
+    // decode TIS-620 client-side ด้วย decodeTIS620()
+    const hx = col => `HEX(CAST(${col} AS BINARY))`;
     let sql;
     if (vstdate) {
       const dateSafe = escapeSqlStr(vstdate);
@@ -90,12 +119,12 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       const nameWhere = nameCond
         ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
         : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
-      sql = `SELECT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.mobile_phone_number, MIN(e.name) AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn AND v.vstdate = '${dateSafe}' INNER JOIN pttype e ON e.pttype = v.pttype WHERE (${nameWhere}) GROUP BY p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number ORDER BY p.lname, p.fname LIMIT 20`;
+      sql = `SELECT p.hn, ${hx('p.pname')} AS pname, ${hx('p.fname')} AS fname, ${hx('p.lname')} AS lname, p.sex, p.mobile_phone_number, MIN(e.name) AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn AND v.vstdate = '${dateSafe}' INNER JOIN pttype e ON e.pttype = v.pttype WHERE (${nameWhere}) GROUP BY p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number ORDER BY p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
         .join(' AND ');
-      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1 AS mobile_phone_number FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
+      sql = `SELECT hn, ${hx('pname')} AS pname, ${hx('fname')} AS fname, ${hx('lname')} AS lname, sex, tel1 AS mobile_phone_number FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
     }
 
     const res = await executeQuery(sql, ctrl ? ctrl.signal : undefined);
@@ -107,10 +136,16 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
     setLoading(false);
     if (res.ok) {
-      const rows = (res.data || []).map(r => ({
-        ...r,
-        phone: r.mobile_phone_number || r.tel1 || '',
-      }));
+      const rows = (res.data || []).map(r => {
+        const pname = decodeTIS620(r.pname);
+        const fname = decodeTIS620(r.fname);
+        const lname = decodeTIS620(r.lname);
+        return {
+          ...r,
+          fullname: `${pname}${fname} ${lname}`.trim() || `HN ${r.hn}`,
+          phone: r.mobile_phone_number || r.tel1 || '',
+        };
+      });
       setResults(rows);
       setShowDrop(true);
     } else {
