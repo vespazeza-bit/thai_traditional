@@ -81,9 +81,6 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
-    // CONVERT(col USING utf8mb4): MySQL แปลง charset ของ column (เช่น tis620/latin1) → UTF-8
-    // ใช้สำหรับ patient table ที่เก็บข้อมูลเป็น TIS-620
-    const cvt = col => `CONVERT(${col} USING utf8mb4)`;
     let sql;
     if (vstdate) {
       const dateSafe = escapeSqlStr(vstdate);
@@ -93,12 +90,12 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       const nameWhere = nameCond
         ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
         : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
-      sql = `SELECT p.hn, ${cvt('p.pname')} AS pname, ${cvt('p.fname')} AS fname, ${cvt('p.lname')} AS lname, p.sex, p.mobile_phone_number, p.birthday FROM patient p WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
+      sql = `SELECT DISTINCT p.hn, CONCAT(COALESCE(p.pname,''),COALESCE(p.fname,''),' ',COALESCE(p.lname,'')) AS fullname, p.sex, p.mobile_phone_number, e.name AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn INNER JOIN pttype e ON e.pttype = v.pttype WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
         .join(' AND ');
-      sql = `SELECT hn, ${cvt('pname')} AS pname, ${cvt('fname')} AS fname, ${cvt('lname')} AS lname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
+      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1 AS mobile_phone_number FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
     }
 
     const res = await executeQuery(sql, ctrl ? ctrl.signal : undefined);
@@ -110,12 +107,8 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
     setLoading(false);
     if (res.ok) {
-      // สร้าง fullname client-side จาก field แยก → หลีกเลี่ยง encoding issue ของ CONCAT ใน SQL
       const rows = (res.data || []).map(r => ({
         ...r,
-        fullname: [r.pname, r.fname, r.lname].filter(Boolean).join('').replace(/\s+/g, ' ').trim()
-          || [r.pname, r.fname, r.lname].filter(Boolean).join(' ').trim()
-          || `HN ${r.hn}`,
         phone: r.mobile_phone_number || r.tel1 || '',
       }));
       setResults(rows);
@@ -179,8 +172,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
               ไม่พบข้อมูลผู้ป่วย
             </div>
           ) : results.map((p, i) => {
-            const age = calcAge(p.birthday);
-            const sub = [p.hn ? `HN ${p.hn}` : '', sexLabel(p.sex), age, p.phone].filter(Boolean).join('  ·  ');
+            const sub = [p.hn ? `HN ${p.hn}` : '', sexLabel(p.sex), p.pttype_name || '', p.phone].filter(Boolean).join('  ·  ');
             return (
               <button key={p.hn || i}
                 onMouseDown={() => handleSelect(p)}
