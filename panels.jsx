@@ -81,11 +81,9 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
-    // CONVERT(CAST(x AS BINARY) USING utf8mb4):
-    //   CAST AS BINARY → raw bytes ไม่ผ่าน charset conversion ของ MySQL
-    //   CONVERT USING utf8mb4 → อ่าน bytes นั้นเป็น UTF-8 ใหม่
-    // แก้กรณีที่ patient table เก็บ TIS-620 ใน column ที่ declare charset ผิด
-    const cvt = col => `CONVERT(CAST(${col} AS BINARY) USING utf8mb4)`;
+    // CONVERT(col USING utf8mb4): MySQL แปลง charset ของ column (เช่น tis620/latin1) → UTF-8
+    // ใช้สำหรับ patient table ที่เก็บข้อมูลเป็น TIS-620
+    const cvt = col => `CONVERT(${col} USING utf8mb4)`;
     let sql;
     if (vstdate) {
       const dateSafe = escapeSqlStr(vstdate);
