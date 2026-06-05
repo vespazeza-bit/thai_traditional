@@ -56,7 +56,6 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
   const timerRef        = useRef(null);
   const abortRef        = useRef(null);
   const justSelectedRef = useRef(false);
-  const wrapperRef      = useRef(null);
 
   useEffect(() => {
     if (justSelectedRef.current) { justSelectedRef.current = false; return; }
@@ -82,28 +81,26 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
+    // ดึง pname/fname/lname แยกกันเพื่อป้องกัน encoding เพี้ยนจาก CONCAT ใน SQL
     let sql;
     if (vstdate) {
-      // ค้นเฉพาะคนไข้ที่มี visit ใน ovst วันที่จอง — ใช้ EXISTS แทน JOIN เพื่อลด load
       const dateSafe = escapeSqlStr(vstdate);
       const nameCond = words
-        .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
+        .map(w => { const s = escapeSqlStr(w); return `(p.fname LIKE '%${s}%' OR p.lname LIKE '%${s}%')`; })
         .join(' AND ');
       const nameWhere = nameCond
-        ? `(${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%'`
-        : `hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%'`;
-      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1, birthday FROM patient WHERE EXISTS (SELECT 1 FROM ovst WHERE ovst.hn = patient.hn AND ovst.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY lname, fname LIMIT 20`;
+        ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
+        : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
+      sql = `SELECT p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number, p.birthday FROM patient p WHERE EXISTS (SELECT 1 FROM ovst o WHERE o.hn = p.hn AND o.vstdate = '${dateSafe}') AND (${nameWhere}) ORDER BY p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
         .join(' AND ');
-      sql = `SELECT hn, CONCAT(COALESCE(pname,''),COALESCE(fname,''),' ',COALESCE(lname,'')) AS fullname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
+      sql = `SELECT hn, pname, fname, lname, sex, tel1, birthday FROM patient WHERE (${nameCond}) OR hn = '${qSafe}' OR tel1 LIKE '%${telSafe}%' ORDER BY lname, fname LIMIT 20`;
     }
 
     const res = await executeQuery(sql, ctrl ? ctrl.signal : undefined);
 
-    // abort = request ถูกยกเลิกเพราะมี request ใหม่มาแทน — ไม่ต้องอัพเดท UI
-    // แต่ต้องเคลียร์ loading เฉพาะกรณีที่ไม่มี request ใหม่กำลังรอ
     if (res.aborted) {
       if (abortRef.current === ctrl) setLoading(false);
       return;
@@ -111,7 +108,15 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
     setLoading(false);
     if (res.ok) {
-      setResults(res.data || []);
+      // สร้าง fullname client-side จาก field แยก → หลีกเลี่ยง encoding issue ของ CONCAT ใน SQL
+      const rows = (res.data || []).map(r => ({
+        ...r,
+        fullname: [r.pname, r.fname, r.lname].filter(Boolean).join('').replace(/\s+/g, ' ').trim()
+          || [r.pname, r.fname, r.lname].filter(Boolean).join(' ').trim()
+          || `HN ${r.hn}`,
+        phone: r.mobile_phone_number || r.tel1 || '',
+      }));
+      setResults(rows);
       setShowDrop(true);
     } else {
       setErrMsg(res.error || 'ค้นหาไม่สำเร็จ');
@@ -126,16 +131,10 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     setResults([]);
   };
 
-  // คำนวณตำแหน่ง dropdown จาก ref ตรง render — ไม่ต้องเก็บ state แยก
-  // position:fixed หลุดพ้น overflow:hidden ของ modal container ได้เลย
-  let dropStyle = null;
-  if (showDrop && wrapperRef.current) {
-    const r = wrapperRef.current.getBoundingClientRect();
-    dropStyle = { position: 'fixed', top: r.bottom + 2, left: r.left, width: r.width, zIndex: 9999 };
-  }
-
+  // dropdown แบบ inline (ไม่ใช้ position:fixed/absolute) — หลีกเลี่ยงปัญหา backdrop-filter
+  // ปรากฏใต้ช่องชื่อในฟอร์มตามที่ผู้ใช้ต้องการ
   return (
-    <div ref={wrapperRef} style={{ position: 'relative' }}>
+    <div>
       <div style={{ position: 'relative' }}>
         <input
           className="input"
@@ -156,21 +155,20 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
         <div style={{ fontSize: 12, color: 'var(--st-cancel-ink)', padding: '4px 2px' }}>{errMsg}</div>
       )}
 
-      {/* dropdown list */}
-      {showDrop && dropStyle && (
+      {/* dropdown inline — แสดงใต้ช่องชื่อ ไม่ลอยออกจากฟอร์ม */}
+      {showDrop && (
         <div style={{
-          ...dropStyle,
+          marginTop: 2,
           background: '#fff',
           border: '1px solid #b0b8c1',
           borderRadius: 4,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-          maxHeight: 320,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+          maxHeight: 260,
           overflowY: 'auto',
           fontSize: 13,
         }}>
-          {/* header bar */}
           <div style={{ padding: '4px 10px', background: '#e8edf2', borderBottom: '1px solid #c8d0d8',
-            fontSize: 12, fontWeight: 600, color: '#444', letterSpacing: 0.3 }}>
+            fontSize: 12, fontWeight: 600, color: '#444' }}>
             รายการ
           </div>
 
@@ -179,8 +177,8 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
               ไม่พบข้อมูลผู้ป่วย
             </div>
           ) : results.map((p, i) => {
-            const age  = calcAge(p.birthday);
-            const sub  = [p.hn ? `HN ${p.hn}` : '', sexLabel(p.sex), age, p.tel1 || ''].filter(Boolean).join('  ·  ');
+            const age = calcAge(p.birthday);
+            const sub = [p.hn ? `HN ${p.hn}` : '', sexLabel(p.sex), age, p.phone].filter(Boolean).join('  ·  ');
             return (
               <button key={p.hn || i}
                 onMouseDown={() => handleSelect(p)}
@@ -188,7 +186,6 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: '7px 12px', border: 'none', background: 'none',
                   borderBottom: '1px solid #eef0f2', cursor: 'pointer',
-                  transition: 'background .1s',
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = '#e8f4fd'}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
@@ -197,7 +194,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
                   {highlightText(p.fullname, query)}
                 </div>
                 {sub && (
-                  <div style={{ fontSize: 11.5, color: '#666', marginTop: 2, lineHeight: 1.3 }}>
+                  <div style={{ fontSize: 11.5, color: '#666', marginTop: 2 }}>
                     {highlightText(sub, query)}
                   </div>
                 )}
@@ -236,7 +233,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
 
   const selectPatient = (p) => {
     setCustomer(p.fullname || "");
-    setPhone(p.tel1 || "");
+    setPhone(p.phone || p.mobile_phone_number || p.tel1 || "");
     setHn(p.hn || "");
     setShowSearch(false);
   };
