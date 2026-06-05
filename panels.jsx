@@ -33,11 +33,19 @@ const TIS620_MAP = {
   0xF0:0x0E50,0xF1:0x0E51,0xF2:0x0E52,0xF3:0x0E53,0xF4:0x0E54,0xF5:0x0E55,0xF6:0x0E56,0xF7:0x0E57,
   0xF8:0x0E58,0xF9:0x0E59,0xFA:0x0E5A,0xFB:0x0E5B,
 };
-function decodeTIS620(hex) {
+function decodeHexBytes(hex) {
   if (!hex) return '';
-  let out = '';
+  const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
-    const b = parseInt(hex.slice(i, i + 2), 16);
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+  }
+  // ลอง UTF-8 ก่อน (ถ้าฐานข้อมูลเก็บ UTF-8 แต่ connection charset ผิด)
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch (_) {}
+  // fallback TIS-620 (ถ้า raw bytes เป็น TIS-620)
+  let out = '';
+  for (const b of bytes) {
     if (b < 0x80) out += String.fromCharCode(b);
     else if (TIS620_MAP[b]) out += String.fromCharCode(TIS620_MAP[b]);
   }
@@ -107,8 +115,8 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     const qSafe   = escapeSqlStr(q.trim());
     const telSafe = escapeSqlStr(q.trim().replace(/\s+/g, ''));
 
-    // HEX(CAST(col AS BINARY)) → raw bytes ไม่ผ่าน charset conversion
-    // decode TIS-620 client-side ด้วย decodeTIS620()
+    // HEX(CAST AS BINARY) → ดึง raw bytes หลีกเลี่ยง API connection charset
+    // decode client-side: UTF-8 ก่อน (ข้อมูลเก็บ UTF-8) fallback TIS-620
     const hx = col => `HEX(CAST(${col} AS BINARY))`;
     let sql;
     if (vstdate) {
@@ -137,9 +145,9 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
     setLoading(false);
     if (res.ok) {
       const rows = (res.data || []).map(r => {
-        const pname = decodeTIS620(r.pname);
-        const fname = decodeTIS620(r.fname);
-        const lname = decodeTIS620(r.lname);
+        const pname = decodeHexBytes(r.pname);
+        const fname = decodeHexBytes(r.fname);
+        const lname = decodeHexBytes(r.lname);
         return {
           ...r,
           fullname: `${pname}${fname} ${lname}`.trim() || `HN ${r.hn}`,
