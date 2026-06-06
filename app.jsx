@@ -176,12 +176,12 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
-        <div className="brand-mark" style={{ background: "none", overflow: "hidden" }}>
+        <div className="brand-mark" style={{ overflow: "hidden", background: "var(--primary)", boxShadow: "0 2px 10px rgba(0,0,0,.18)", border: "2px solid rgba(255,255,255,.6)" }}>
           <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
         <div className="brand-text">
-          <div className="brand-name">ThaiMed Scheduler</div>
-          <div className="brand-sub">แพทย์แผนไทย</div>
+          <div className="brand-name" style={{ color: "var(--primary)", fontWeight: 700 }}>ThaiMed Scheduler</div>
+          <div className="brand-sub">ระบบจัดการคิวนัดหมายบริการแพทย์แผนไทย</div>
         </div>
       </div>
 
