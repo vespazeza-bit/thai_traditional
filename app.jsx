@@ -2566,7 +2566,9 @@ function App() {
       fmtQueueNo(appt.queueNo || 0),
       appt.customer || "",
       bedLabel,
-      svcObj?.name
+      null,
+      bedObj?.room || null,
+      bedObj?.name || null
     );
     showToast(`🔔 เรียกคิว ${fmtQueueNo(appt.queueNo || 0)} — ${appt.customer || "ผู้รับบริการ"}`);
   };
@@ -2574,12 +2576,14 @@ function App() {
   const handleRepeatCall = (queue) => {
     if (!queue) return;
     const bedObj = beds.find(b => b.id === queue.bedId);
-    const bedLabel = bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : queue.bedLabel || null;
+    const bedLabel = queue.bedLabel || (bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : null);
     speakQueue(
       fmtQueueNo(queue.queueNo || 0),
       queue.customer || "",
       bedLabel,
-      queue.svcName || svc(queue.serviceId)?.name
+      null,
+      bedObj?.room || null,
+      bedObj?.name || null
     );
     showToast(`🔁 เรียกซ้ำ ${fmtQueueNo(queue.queueNo || 0)}`);
   };

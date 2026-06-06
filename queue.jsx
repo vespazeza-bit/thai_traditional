@@ -6,24 +6,38 @@ function fmtQueueNo(n) {
   return `A${String(n).padStart(2, '0')}`;
 }
 
-function speakQueue(queueNo, patientName, bedLabel, serviceName) {
+function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedName) {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  const parts = [`หมายเลข ${queueNo}`];
-  if (patientName) parts.push(patientName);
-  if (bedLabel) parts.push(`เชิญที่${bedLabel}`);
-  if (serviceName) parts.push(serviceName);
-  const utterance = new SpeechSynthesisUtterance(parts.join(" "));
+
+  // สร้างข้อความ: "ขอเชิญหมายเลข A15 ที่ห้องอโรมา เตียง 5"
+  let text = `ขอเชิญหมายเลข ${queueNo}`;
+  if (bedRoom) {
+    text += ` ที่${bedRoom}`;
+    if (bedName) text += ` ${bedName}`;
+  } else if (bedName) {
+    text += ` ${bedName}`;
+  } else if (bedLabel) {
+    text += ` ${bedLabel}`;
+  }
+
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'th-TH';
   utterance.rate = 0.82;
-  utterance.pitch = 1.0;
+  utterance.pitch = 1.1;
   utterance.volume = 1;
+
   const trySpeak = () => {
     const voices = window.speechSynthesis.getVoices();
-    const thVoice = voices.find(v => v.lang === 'th-TH' || v.lang === 'th');
-    if (thVoice) utterance.voice = thVoice;
+    const thVoices = voices.filter(v => v.lang === 'th-TH' || v.lang === 'th');
+    // หาเสียงผู้หญิง: ค้นจากชื่อ voice ก่อน ถ้าไม่เจอลอง index 1 (มักเป็นผู้หญิง)
+    const female = thVoices.find(v =>
+      /female|woman|kanya|pattara|หญิง/i.test(v.name)
+    ) || (thVoices.length > 1 ? thVoices[1] : null) || thVoices[0];
+    if (female) utterance.voice = female;
     window.speechSynthesis.speak(utterance);
   };
+
   if (window.speechSynthesis.getVoices().length > 0) trySpeak();
   else window.speechSynthesis.onvoiceschanged = trySpeak;
 }
