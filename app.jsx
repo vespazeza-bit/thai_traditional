@@ -2776,6 +2776,7 @@ function App() {
         executeQuery={executeQuery}
         vstdate={key}
         existingAppts={list}
+        beds={beds}
       />
       <DetailPanel
         open={!!selected} appt={selectedAppt}

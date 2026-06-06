@@ -246,7 +246,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
 // ── Booking form (centered modal) ────────────────────────────────────────────
 
-function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp, vstdate, existingAppts }) {
+function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp, vstdate, existingAppts, beds }) {
   const serviceList = servicesProp || SERVICES;
   const [customer,   setCustomer]   = useState("");
   const [phone,      setPhone]      = useState("");
@@ -255,6 +255,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const [therapistId,setTherapistId]= useState(therapists[0]?.id);
   const [start,      setStart]      = useState(OPEN_MIN);
   const [note,       setNote]       = useState("");
+  const [bedId,      setBedId]      = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [dupWarn,    setDupWarn]    = useState(null);
   const [slotConflict, setSlotConflict] = useState(null);
@@ -270,6 +271,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
       setPhone(draft.phone || "");
       setHn(draft.hn || "");
       setNote(draft.note || "");
+      setBedId(draft.bedId || "");
       setPttypeName(draft.pttypeName || "");
       const draftSvc = draft.serviceId && serviceList.find(sv => sv.id === draft.serviceId);
       setServiceId(draftSvc ? draft.serviceId : (serviceList[0]?.id || "thai60"));
@@ -289,6 +291,19 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const s   = serviceList.find(sv => sv.id === serviceId) || svc(serviceId) || serviceList[0] || {};
   const th  = ther(therapistId) || therapists[0];
   const valid = customer.trim().length > 1;
+
+  // เตียงที่ active และว่างในช่วงเวลาที่เลือก
+  const newDur = s?.dur || 60;
+  const activeBeds = (beds || []).filter(b => b.active !== false);
+  const availableBeds = activeBeds.filter(b =>
+    !(existingAppts || []).some(a => {
+      if (a.status === "cancelled") return false;
+      if (a.id === draft?.id) return false;
+      if (a.bedId !== b.id) return false;
+      const aDur = (svc(a.serviceId)?.dur) || 60;
+      return a.start < start + newDur && a.start + aDur > start;
+    })
+  );
 
   const timeOpts = [];
   for (let m = OPEN_MIN; m <= CLOSE_MIN - 30; m += SLOT) timeOpts.push(m);
@@ -373,6 +388,28 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
               </div>
             </div>
 
+            {activeBeds.length > 0 && (
+              <div className="field">
+                <label>เตียงบริการ</label>
+                <select className="select" value={bedId} onChange={e => setBedId(e.target.value)}>
+                  <option value="">— ไม่ระบุเตียง —</option>
+                  {activeBeds.map(b => {
+                    const free = availableBeds.some(ab => ab.id === b.id);
+                    return (
+                      <option key={b.id} value={b.id} disabled={!free}>
+                        {b.name}{b.room ? ` (${b.room})` : ""}{!free ? " — ไม่ว่าง" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                {bedId && !availableBeds.some(b => b.id === bedId) && (
+                  <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>
+                    ⚠ เตียงนี้ถูกจองในช่วงเวลาที่เลือกแล้ว กรุณาเลือกเตียงอื่น
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="field">
               <label>หมายเหตุ / อาการ</label>
               <textarea className="input" placeholder="เช่น ปวดบ่าไหล่ ขอแรงปานกลาง"
@@ -450,7 +487,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
               onSave({
                 ...(isEdit ? { id: draft.id, status: draft.status } : { status: "booked" }),
                 customer: customer.trim(), phone, hn, pttypeName,
-                serviceId, therapistId, start, note, gender: "ญ",
+                serviceId, therapistId, start, note, bedId, gender: "ญ",
               });
             }}>
             <Icon name="check" size={16} /> {isEdit ? "บันทึกการแก้ไข" : "ยืนยันการจอง"}
@@ -506,7 +543,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
                 <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setDupWarn(null)}>ยกเลิก</button>
                 <button className="btn-fill" style={{ flex: 1 }} onClick={() => {
                   setDupWarn(null);
-                  onSave({ status: "booked", customer: customer.trim(), phone, hn, pttypeName, serviceId, therapistId, start, note, gender: "ญ" });
+                  onSave({ status: "booked", customer: customer.trim(), phone, hn, pttypeName, serviceId, therapistId, start, note, bedId, gender: "ญ" });
                 }}>จองต่อ</button>
               </div>
             </div>
