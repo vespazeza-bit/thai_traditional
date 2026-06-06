@@ -257,8 +257,9 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const [note,       setNote]       = useState("");
   const [bedId,      setBedId]      = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [dupWarn,    setDupWarn]    = useState(null);
+  const [dupWarn,      setDupWarn]      = useState(null);
   const [slotConflict, setSlotConflict] = useState(null);
+  const [bedConflict,  setBedConflict]  = useState(null);
   const [pttypeName, setPttypeName] = useState("");
 
   const isEdit = !!(draft && draft.id);
@@ -477,6 +478,17 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
                 return a.start < start + newDur && a.start + aDur > start;
               });
               if (timeConflict) { setSlotConflict(timeConflict); return; }
+              // ตรวจสอบเตียงซ้ำช่วงเวลาเดียวกัน — hard block
+              if (bedId) {
+                const bedOccupied = (existingAppts || []).find(a => {
+                  if (a.status === "cancelled") return false;
+                  if (a.id === draft?.id) return false;
+                  if (a.bedId !== bedId) return false;
+                  const aDur = (svc(a.serviceId)?.dur) || 60;
+                  return a.start < start + newDur && a.start + aDur > start;
+                });
+                if (bedOccupied) { setBedConflict(bedOccupied); return; }
+              }
               // ตรวจสอบ HN ซ้ำ (เตือนได้แต่ยังจองได้)
               if (!isEdit && hn) {
                 const dup = (existingAppts || []).find(
@@ -517,6 +529,34 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
               </div>
               <button className="btn-fill" style={{ width: "100%" }} onClick={() => setSlotConflict(null)}>
                 ตกลง — เลือกเวลาใหม่
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Bed conflict dialog — hard block */}
+        {bedConflict && (
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10, borderRadius: 16,
+          }}>
+            <div style={{
+              background: "var(--surface)", borderRadius: 14, padding: 24, maxWidth: 340,
+              boxShadow: "0 8px 32px rgba(0,0,0,.22)", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>🛏️</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: "#dc2626" }}>
+                ไม่สามารถจองได้ — เตียงถูกจองแล้ว
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 16, lineHeight: 1.7 }}>
+                เตียงนี้มีนัดอยู่แล้วช่วง <strong style={{ color: "var(--ink)" }}>
+                  {fmtMin(bedConflict.start)}–{fmtMin(bedConflict.start + ((svc(bedConflict.serviceId)?.dur) || 60))}
+                </strong><br/>
+                ลูกค้า: <strong style={{ color: "var(--ink)" }}>{bedConflict.customer || "—"}</strong><br/>
+                กรุณาเลือกเตียงอื่นหรือเวลาอื่น
+              </div>
+              <button className="btn-fill" style={{ width: "100%" }} onClick={() => setBedConflict(null)}>
+                ตกลง — เลือกเตียงใหม่
               </button>
             </div>
           </div>
