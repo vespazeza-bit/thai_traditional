@@ -181,7 +181,7 @@ function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
 function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   const nav = [
     { id: "sched",  icon: "calendar", label: "ตารางนัด" },
-    { id: "cust",   icon: "users",    label: "ผู้รับบริการ" },
+    { id: "cust",   icon: "users",    label: "ทะเบียนผู้รับบริการ" },
     { id: "ther",   icon: "user",     label: "ผู้ให้บริการ" },
     { id: "svc",    icon: "leaf",     label: "บริการแพทย์แผนไทย" },
     { id: "report", icon: "chart",    label: "รายงาน" },
