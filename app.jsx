@@ -1468,7 +1468,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
     const nm = a.customer||(a.hn?`HN ${a.hn}`:null)||"ไม่ทราบ";
     if (!custMap[nm]) custMap[nm]={name:nm,count:0,income:0};
     custMap[nm].count++;
-    if (a.status==="done") custMap[nm].income+=svc(a.serviceId)?.price||0;
+    custMap[nm].income += svc(a.serviceId)?.price||0;
   });
   const regularCusts = Object.values(custMap).filter(c=>c.count>=2).sort((a,b)=>b.count-a.count).slice(0,8);
 
@@ -1921,7 +1921,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                       <div className="reg-cell" style={{width:36,color:"var(--ink-faint)",fontSize:12}}>{i+1}</div>
                       <div className="reg-cell" style={{flex:1,fontWeight:500}}>{c.name}</div>
                       <div className="reg-cell" style={{width:90,textAlign:"right",fontWeight:700,color:"var(--primary)"}}>{c.count} ครั้ง</div>
-                      <div className="reg-cell" style={{width:110,textAlign:"right",color:"var(--ink-faint)"}}>{c.income.toLocaleString()} ฿</div>
+                      <div className="reg-cell" style={{width:110,textAlign:"right",fontWeight:600,color:"var(--primary-deep)"}}>{c.income.toLocaleString()} ฿</div>
                     </div>
                   ))}
                 </div>
