@@ -46,7 +46,9 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
   }, [appts, dateKey]);
 
   const sorted = useMemo(() => {
-    return [...todayList].sort((a, b) => (a.queueNo || 999) - (b.queueNo || 999) || a.start - b.start);
+    const arr = [...todayList].sort((a, b) => (a.queueNo || 999) - (b.queueNo || 999) || a.start - b.start);
+    // ใส่ _displayQ เป็น fallback สำหรับนัดที่ยังไม่มี queueNo
+    return arr.map((a, i) => ({ ...a, _displayQ: a.queueNo || (i + 1) }));
   }, [todayList]);
 
   const waiting = sorted.filter(a => ["booked", "confirmed"].includes(a.status));
@@ -80,7 +82,7 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
 
   // ── Kanban Card ─────────────────────────────────────────────────────────────
   const KanbanCard = ({ appt, accentColor }) => {
-    const qStr = appt.queueNo ? fmtQueueNo(appt.queueNo) : "—";
+    const qStr = fmtQueueNo(appt._displayQ || appt.queueNo || 0);
     const bn = getBedLabel(appt.bedId);
     const isCalling = currentQueue?.id === appt.id;
 
