@@ -1367,7 +1367,7 @@ function Stat({ icon, val, lab, ink, bg }) {
 
 // ── Report Page ──────────────────────────────────────────────────────────────
 
-function ReportPage({ appts, therapistsData, activeServices, userInfo, therapistStatusText, onDisconnect, serviceTherFees }) {
+function ReportPage({ appts, therapistsData, activeServices, userInfo, therapistStatusText, onDisconnect, serviceTherFees, onNewBooking }) {
   const [tab, setTab] = useState("live");
   const [nowMin, setNowMin] = useState(() => { const d = new Date(); return d.getHours()*60+d.getMinutes(); });
   const [dailyMode, setDailyMode] = useState("count");
@@ -1548,7 +1548,16 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                   const stInk     = isCurrent ? "var(--st-service-ink)" : hasNext ? "var(--st-booked-ink)" : "var(--ink-faint)";
                   const stBg      = isCurrent ? "var(--st-service-bg)" : hasNext ? "var(--st-booked-bg)" : "var(--surface-2)";
                   return (
-                    <div key={t.id} style={{background:"var(--surface-2)",borderRadius:12,padding:"12px 14px"}}>
+                    <div key={t.id}
+                      onClick={() => onNewBooking && onNewBooking(t.id)}
+                      style={{
+                        background:"var(--surface-2)", borderRadius:12, padding:"12px 14px",
+                        cursor:"pointer", transition:"box-shadow .15s, transform .1s",
+                        border:"1px solid transparent",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow="0 4px 14px rgba(0,0,0,.1)"; e.currentTarget.style.borderColor="var(--primary)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.boxShadow=""; e.currentTarget.style.borderColor="transparent"; }}
+                    >
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <Avatar name={t.name} color={t.color} size={30}/>
                         <div style={{flex:1,minWidth:0}}>
@@ -1557,9 +1566,14 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                         </div>
                         <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:stBg,color:stInk,fontWeight:600,whiteSpace:"nowrap",border:`1px solid ${stInk}22`}}>{stLabel}</span>
                       </div>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                         <BarH pct={todayMaxQ>0?(t.todayCount/todayMaxQ)*100:0} h={6} color={isCurrent?"var(--st-service-ink)":"var(--primary)"}/>
                         <span style={{fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{t.todayCount} คิว</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"flex-end"}}>
+                        <span style={{fontSize:11,color:"var(--primary)",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                          <Icon name="plus" size={12}/> จองนัดใหม่
+                        </span>
                       </div>
                     </div>
                   );
@@ -2409,6 +2423,10 @@ function App() {
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
             serviceTherFees={serviceTherFees}
+            onNewBooking={(therapistId) => {
+              setBooking({ therapistId, start: OPEN_MIN });
+              setActivePage("sched");
+            }}
           />
         )}
 
