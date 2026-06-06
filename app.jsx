@@ -1422,7 +1422,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
     const done     = all.filter(a => a.status==="done");
     const totalMins = all.reduce((s,a)=>s+(svc(a.serviceId)?.dur||60),0);
     const income        = done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0);
-    const therFeeIncome = done.reduce((s,a)=>s+((serviceTherFees||{})[a.serviceId]||0),0);
+    const therFeeIncome = all.reduce((s,a)=>s+((serviceTherFees||{})[a.serviceId]||0),0);
     const availMins = (CLOSE_MIN-OPEN_MIN)*(allEntries.length||1);
     const utilPct  = availMins>0 ? Math.min(100, Math.round(totalMins/availMins*100)) : 0;
     const current  = todayT.find(a => a.status==="service" && a.start<=nowMin && (a.start+(svc(a.serviceId)?.dur||60))>nowMin);
