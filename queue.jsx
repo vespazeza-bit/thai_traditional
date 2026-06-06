@@ -7,9 +7,6 @@ function fmtQueueNo(n) {
 }
 
 function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedName) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-
   // สร้างข้อความ: "ขอเชิญหมายเลข A07 ที่ห้อง 1 เตียง A1"
   let text = `ขอเชิญหมายเลข ${queueNo}`;
   if (bedRoom) {
@@ -21,35 +18,31 @@ function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedNam
     text += ` ${bedLabel}`;
   }
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'th-TH';
-  utterance.rate = 0.7;
-  utterance.pitch = 1.75; // เพิ่ม pitch ให้ฟังดูสูงขึ้น (ชดเชยกรณีไม่มีเสียงหญิง)
-  utterance.volume = 1;
-
-  function pickVoice() {
-    const all = window.speechSynthesis.getVoices();
-    const th  = all.filter(v => v.lang === 'th-TH' || v.lang === 'th');
-    if (!th.length) return;
-    // เสียงหญิง: thipsuda (Windows), kanya (macOS) — ถ้าไม่มีให้หลีกเลี่ยง pattara/niwat (ชาย)
-    const female = th.find(v => /thipsuda|kanya|female|woman|หญิง/i.test(v.name))
-      || th.find(v => !/pattara|niwat|male/i.test(v.name))
-      || th[0];
-    utterance.voice = female;
+  // fallback: Web Speech API (ใช้ถ้า Google TTS โหลดไม่ได้)
+  function useSpeechSynthesis() {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'th-TH'; utt.rate = 0.7; utt.pitch = 1.75; utt.volume = 1;
+    function pickVoice() {
+      const th = window.speechSynthesis.getVoices().filter(v => v.lang === 'th-TH' || v.lang === 'th');
+      const female = th.find(v => /thipsuda|kanya|female|woman|หญิง/i.test(v.name))
+        || th.find(v => !/pattara|niwat|male/i.test(v.name)) || th[0];
+      if (female) utt.voice = female;
+    }
+    if (window.speechSynthesis.getVoices().length > 0) { pickVoice(); window.speechSynthesis.speak(utt); }
+    else { window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; pickVoice(); window.speechSynthesis.speak(utt); }; }
   }
 
-  function doSpeak() {
-    pickVoice();
-    window.speechSynthesis.speak(utterance);
-  }
-
-  if (window.speechSynthesis.getVoices().length > 0) {
-    doSpeak();
-  } else {
-    window.speechSynthesis.onvoiceschanged = () => {
-      window.speechSynthesis.onvoiceschanged = null;
-      doSpeak();
-    };
+  // ใช้ Google Translate TTS (เสียงหญิงภาษาไทย)
+  try {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=th&client=tw-ob`;
+    if (window._qAudio) { window._qAudio.pause(); window._qAudio.src = ""; }
+    window._qAudio = new Audio(url);
+    window._qAudio.playbackRate = 0.88; // ช้าลงเล็กน้อย
+    window._qAudio.play().catch(useSpeechSynthesis);
+  } catch (e) {
+    useSpeechSynthesis();
   }
 }
 
