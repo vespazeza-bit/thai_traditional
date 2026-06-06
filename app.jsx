@@ -288,13 +288,16 @@ function oiLabel(rawKey) {
     || s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function OperationDetail({ item, onClose }) {
+function OperationDetail({ item, onClose, therFee, onSaveTherFee }) {
+  const [editFee, setEditFee] = useState(therFee ?? 0);
+  useEffect(() => { setEditFee(therFee ?? 0); }, [therFee, item?.id]);
+
   if (!item) return null;
   const raw = item._raw || {};
   const fields = Object.entries(raw).filter(([k, v]) => {
     if (v === null || v === undefined || v === "" || v === 0 || v === "0") return false;
     if (/_(type|category|group|level)_id$/i.test(k)) return false;
-    if (k === "item_name") return false; // shown in hero
+    if (k === "item_name") return false;
     return true;
   });
   const isActive = item.isActive !== false;
@@ -346,6 +349,34 @@ function OperationDetail({ item, onClose }) {
                 <div className="detail-kv-value">{String(v)}</div>
               </div>
             ))}
+          </div>
+
+          {/* ── ค่าบริการผู้ให้บริการ ── */}
+          <div style={{ borderTop: "1px solid var(--line)", paddingTop: 18, marginTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>ค่าบริการผู้ให้บริการ</div>
+            <div style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 12 }}>
+              อัตราค่าตอบแทนที่จ่ายให้ผู้ให้บริการต่อครั้ง — ใช้คำนวณยอดในทะเบียนผู้รับบริการ
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <div className="field" style={{ flex: 1, marginBottom: 0 }}>
+                <label>ราคา (บาท)</label>
+                <div style={{ position: "relative" }}>
+                  <input className="input" type="number" min="0" step="10" value={editFee}
+                    onChange={e => setEditFee(Math.max(0, +e.target.value))} />
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                    fontSize: 12, color: "var(--ink-faint)", pointerEvents: "none" }}>฿</span>
+                </div>
+              </div>
+              <button className="btn-fill" style={{ marginBottom: 1, whiteSpace: "nowrap" }}
+                onClick={() => onSaveTherFee && onSaveTherFee(item.id, editFee)}>
+                บันทึก
+              </button>
+            </div>
+            {(therFee ?? 0) > 0 && (
+              <div style={{ marginTop: 8, fontSize: 12, color: "oklch(0.38 0.12 165)", fontWeight: 600 }}>
+                ปัจจุบัน: {Number(therFee).toLocaleString()} ฿ / ครั้ง
+              </div>
+            )}
           </div>
         </div>
         <div className="modal-foot">
@@ -510,7 +541,7 @@ function useAutoPageSize(contentRef, rowH = 52) {
 // ── Customers page (ทะเบียนคนไข้จากการจองนัด) ────────────────────────────────
 
 function CustomersPage({ appts, therapistsData, operationItems,
-  userInfo, therapistStatusText, onDisconnect, bmsConfig }) {
+  userInfo, therapistStatusText, onDisconnect, bmsConfig, serviceTherFees }) {
 
   const [search,    setSearch]    = useState("");
   const [dateFrom,  setDateFrom]  = useState("");
@@ -523,17 +554,26 @@ function CustomersPage({ appts, therapistsData, operationItems,
 
   // Build lookup maps directly from props (ไม่ใช้ window.svc/ther เพราะ timing issue)
   const svcMap = useMemo(() => {
+    const fees = serviceTherFees || {};
     const m = {};
     operationItems.forEach(it => {
       m[it.id] = {
-        name:  it.name  || '—',
-        dur:   it.minute != null ? Number(it.minute) : (it.dur != null ? Number(it.dur) : null),
-        price: it.price  != null ? Number(it.price)  : null,
+        name:    it.name  || '—',
+        dur:     it.minute != null ? Number(it.minute) : (it.dur != null ? Number(it.dur) : null),
+        price:   it.price  != null ? Number(it.price)  : null,
+        therFee: fees[it.id] != null ? Number(fees[it.id]) : null,
       };
     });
-    SERVICES.forEach(sv => { if (!m[sv.id]) m[sv.id] = { name: sv.name, dur: sv.dur, price: sv.price }; });
+    SERVICES.forEach(sv => {
+      if (!m[sv.id]) m[sv.id] = {
+        name:    sv.name,
+        dur:     sv.dur,
+        price:   sv.price,
+        therFee: fees[sv.id] != null ? Number(fees[sv.id]) : null,
+      };
+    });
     return m;
-  }, [operationItems]);
+  }, [operationItems, serviceTherFees]);
 
   const therMap = useMemo(() => {
     const m = {};
@@ -552,10 +592,11 @@ function CustomersPage({ appts, therapistsData, operationItems,
         rows.push({
           ...a,
           dateKey,
-          svcName:  sv.name  || a.serviceId || '—',
-          svcDur:   sv.dur   != null ? sv.dur   : null,
-          svcPrice: sv.price != null ? sv.price : null,
-          therName: therMap[a.therapistId] || a.therapistId || '—',
+          svcName:    sv.name    || a.serviceId || '—',
+          svcDur:     sv.dur     != null ? sv.dur     : null,
+          svcPrice:   sv.price   != null ? sv.price   : null,
+          svcTherFee: sv.therFee != null ? sv.therFee : null,
+          therName:   therMap[a.therapistId] || a.therapistId || '—',
         });
       });
     });
@@ -627,7 +668,7 @@ function CustomersPage({ appts, therapistsData, operationItems,
 
   const exportCSV = () => {
     const headers = ['ลำดับ','วันที่รับบริการ','HN','ชื่อ-สกุล','สิทธิรักษา',
-      'รายการรับบริการ','ระยะเวลา(นาที)','ผู้ให้บริการ','ราคาค่าบริการ','สถานะ'];
+      'รายการรับบริการ','ระยะเวลา(นาที)','ผู้ให้บริการ','ราคาค่าบริการ','ค่าบริการผู้ให้บริการ','สถานะ'];
     const dataRows = filtered.map((r, i) => [
       i + 1,
       thaiDateStr(r.dateKey),
@@ -637,7 +678,8 @@ function CustomersPage({ appts, therapistsData, operationItems,
       r.svcName,
       r.svcDur != null ? r.svcDur : '',
       r.therName,
-      r.svcPrice != null ? r.svcPrice : '',
+      r.svcPrice   != null ? r.svcPrice   : '',
+      r.svcTherFee != null ? r.svcTherFee : '',
       STATUSES[r.status]?.label || r.status || '',
     ]);
     const csv = [headers, ...dataRows]
@@ -731,6 +773,7 @@ function CustomersPage({ appts, therapistsData, operationItems,
             <div className="reg-cell" style={{ width: 70, textAlign: "center" }}>เวลา(น.)</div>
             <div className="reg-cell" style={{ flex: 2 }}>ผู้ให้บริการ</div>
             <div className="reg-cell" style={{ width: 90, textAlign: "right" }}>ค่าบริการ</div>
+            <div className="reg-cell" style={{ width: 105, textAlign: "right" }}>ค่าบริการผู้ให้บริการ</div>
             <div className="reg-cell" style={{ width: 88 }}>สถานะ</div>
           </div>
 
@@ -758,6 +801,10 @@ function CustomersPage({ appts, therapistsData, operationItems,
                   color: r.svcPrice ? "var(--primary-deep)" : "var(--ink-faint)" }}>
                   {r.svcPrice != null ? Number(r.svcPrice).toLocaleString() + '฿' : '—'}
                 </div>
+                <div className="reg-cell" style={{ width: 105, textAlign: "right", fontWeight: 700,
+                  color: r.svcTherFee ? "oklch(0.38 0.12 165)" : "var(--ink-faint)" }}>
+                  {r.svcTherFee != null ? Number(r.svcTherFee).toLocaleString() + '฿' : '—'}
+                </div>
                 <div className="reg-cell" style={{ width: 88 }}>
                   <span className="pill" style={{ color: st.ink, background: st.bg, fontSize: 11, padding: "2px 7px" }}>
                     <span className="dot" />{st.label}
@@ -781,6 +828,8 @@ function CustomersPage({ appts, therapistsData, operationItems,
           const doneCount     = filtered.filter(r => r.status === "done").length;
           const doneIncome    = filtered.filter(r => r.status === "done")
                                         .reduce((s, r) => s + (r.svcPrice != null ? Number(r.svcPrice) : 0), 0);
+          const totalTherFee  = filtered.reduce((s, r) => s + (r.svcTherFee != null ? Number(r.svcTherFee) : 0), 0);
+          const hasTherFee    = filtered.some(r => r.svcTherFee != null);
           return (
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "flex-end",
@@ -812,13 +861,23 @@ function CustomersPage({ appts, therapistsData, operationItems,
                   </span>
                 </div>
                 {/* done income */}
-                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2, borderRight: hasTherFee ? "1px solid var(--line)" : "none" }}>
                   <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>รายได้จริง (เสร็จสิ้น)</span>
                   <span style={{ fontSize: 18, fontWeight: 700, color: "#16a34a" }}>
                     {doneIncome.toLocaleString('th-TH')}
                     <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 3 }}>฿</span>
                   </span>
                 </div>
+                {/* therapist fee total */}
+                {hasTherFee && (
+                  <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>ค่าบริการผู้ให้บริการรวม</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: "oklch(0.38 0.12 165)" }}>
+                      {totalTherFee.toLocaleString('th-TH')}
+                      <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 3 }}>฿</span>
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -831,7 +890,8 @@ function CustomersPage({ appts, therapistsData, operationItems,
 // ── Services registry page (HOSxP health_med_operation_item) ──────────────────
 
 function ServicesPage({ operationItems, operationStatus, operationErrMsg,
-  userInfo, therapistStatusText, onDisconnect, onReload }) {
+  userInfo, therapistStatusText, onDisconnect, onReload,
+  serviceTherFees, onSaveTherFee }) {
 
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState(null);
@@ -979,7 +1039,9 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
         )}
       </div>
 
-      <OperationDetail item={selected} onClose={() => setSelected(null)} />
+      <OperationDetail item={selected} onClose={() => setSelected(null)}
+        therFee={selected ? (serviceTherFees?.[selected.id] ?? 0) : 0}
+        onSaveTherFee={onSaveTherFee} />
     </>
   );
 }
@@ -1908,6 +1970,11 @@ function App() {
   const [services, setServices] = useState(SERVICES.map(s => ({ ...s, active: true })));
   const [svcForm, setSvcForm]   = useState(null);
 
+  // ค่าบริการผู้ให้บริการต่อรายการหัตถการ (บันทึก local, ใช้กับทั้ง HOSxP และ local services)
+  const [serviceTherFees, setServiceTherFees] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('thai_svc_therfees') || '{}'); } catch { return {}; }
+  });
+
   // ── Effects (must all be before early return) ─────────────────────────────
   useEffect(() => { applyTheme(t.theme); }, [t.theme]);
   useEffect(() => { document.documentElement.dataset.density = t.density; }, [t.density]);
@@ -1940,6 +2007,10 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('thai_appts', JSON.stringify(appts)); } catch {}
   }, [appts]);
+
+  useEffect(() => {
+    try { localStorage.setItem('thai_svc_therfees', JSON.stringify(serviceTherFees)); } catch {}
+  }, [serviceTherFees]);
 
   // ดึงสถิติจาก HOSxP ovst ตามวันที่เลือก (เฉพาะจำนวนนัด)
   useEffect(() => {
@@ -2234,6 +2305,11 @@ function App() {
     showToast(sv.active === false ? `เปิดใช้งาน "${sv.name}" แล้ว` : `ปิดการใช้งาน "${sv.name}" แล้ว`);
   };
 
+  const handleSaveTherFee = (serviceId, fee) => {
+    setServiceTherFees(prev => ({ ...prev, [serviceId]: Number(fee) }));
+    showToast("บันทึกค่าบริการผู้ให้บริการเรียบร้อย");
+  };
+
   // ── Login gate ────────────────────────────────────────────────────────────
   if (!bms.connected) {
     return (
@@ -2340,6 +2416,8 @@ function App() {
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
             onReload={() => doLoadOperationItems(bms.config)}
+            serviceTherFees={serviceTherFees}
+            onSaveTherFee={handleSaveTherFee}
           />
         )}
 
@@ -2376,6 +2454,7 @@ function App() {
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
             bmsConfig={bms.config}
+            serviceTherFees={serviceTherFees}
           />
         )}
 
