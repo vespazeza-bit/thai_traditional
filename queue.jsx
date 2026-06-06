@@ -27,19 +27,29 @@ function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedNam
   utterance.pitch = 1.1;
   utterance.volume = 1;
 
-  const trySpeak = () => {
-    const voices = window.speechSynthesis.getVoices();
-    const thVoices = voices.filter(v => v.lang === 'th-TH' || v.lang === 'th');
-    // หาเสียงผู้หญิง: thipsuda (Windows), kanya (macOS), female/woman keyword
-    const female = thVoices.find(v =>
-      /female|woman|kanya|pattara|thipsuda|naresuan|หญิง/i.test(v.name)
-    ) || (thVoices.length > 1 ? thVoices[1] : null) || thVoices[0];
-    if (female) utterance.voice = female;
-    window.speechSynthesis.speak(utterance);
-  };
+  function pickVoice() {
+    const all = window.speechSynthesis.getVoices();
+    const th  = all.filter(v => v.lang === 'th-TH' || v.lang === 'th');
+    if (!th.length) return;
+    // thipsuda = Windows female, kanya = macOS female; fallback th[0] (มักเป็นหญิงใน Windows)
+    const female = th.find(v => /thipsuda|kanya|pattara|female|woman|หญิง/i.test(v.name))
+      || th[0];
+    utterance.voice = female;
+  }
 
-  if (window.speechSynthesis.getVoices().length > 0) trySpeak();
-  else window.speechSynthesis.onvoiceschanged = trySpeak;
+  function doSpeak() {
+    pickVoice();
+    window.speechSynthesis.speak(utterance);
+  }
+
+  if (window.speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.onvoiceschanged = null;
+      doSpeak();
+    };
+  }
 }
 
 function broadcastQueue(current, history) {
