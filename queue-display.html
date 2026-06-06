@@ -295,11 +295,6 @@ function renderCurrent(q) {
   const qNo   = fmtNo(q.queueNo);
   const name  = maskName(q.customer || (q.hn ? `HN ${q.hn}` : null));
   const bed   = q.bedLabel ? `<div class="info-chip">🛏 ${q.bedLabel}</div>` : '';
-  const ther  = q.therName  ? `
-    <div class="ther-row">
-      <div class="ther-av">${q.therName.charAt(0)}</div>
-      <span>หมอนวด ${q.therName}</span>
-    </div>` : '';
 
   panel.innerHTML = `
     <div class="calling-badge">
@@ -308,7 +303,7 @@ function renderCurrent(q) {
     </div>
     <div class="queue-number">${qNo}</div>
     <div class="patient-name">${name}</div>
-    ${bed}${ther}
+    ${bed}
   `;
 }
 
