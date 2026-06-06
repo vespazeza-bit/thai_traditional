@@ -2761,6 +2761,7 @@ function App() {
                   showNow={t.showNow && key === todayKey}
                   onSlot={(tid, start) => setBooking({ therapistId: tid, start })}
                   onAppt={(a) => setSelected(a.id)}
+                  beds={beds}
                 />
               )}
             </div>
@@ -2796,6 +2797,7 @@ function App() {
           queueNo={printAppt.queueNo}
           date={printAppt.date}
           onClose={() => setPrintAppt(null)}
+          beds={beds}
         />
       )}
 

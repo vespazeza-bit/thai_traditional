@@ -845,12 +845,14 @@ function ServiceForm({ open, onClose, service, onSave }) {
 
 // ── Queue Ticket Print Modal ──────────────────────────────────────────────────
 
-function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose }) {
+function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose, beds }) {
   if (!appt) return null;
   const sl = services || SERVICES;
   const s  = sl.find(sv => sv.id === appt.serviceId) || svc(appt.serviceId) || { name: appt.serviceId || '—', dur: 60, price: 0 };
   const tl = therapists || [];
   const t  = tl.find(tt => tt.id === appt.therapistId) || ther(appt.therapistId) || { name: appt.therapistId || '—' };
+  const bed = appt.bedId && beds ? beds.find(b => b.id === appt.bedId) : null;
+  const bedLabel = bed ? `${bed.name}${bed.room ? ` ห้อง ${bed.room}` : ""}` : null;
 
   const pad2 = n => String(n).padStart(2, '0');
   const thaiDate = d => {
@@ -939,6 +941,12 @@ function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose }
                 <span className="qt-key">ผู้ให้บริการ</span>
                 <span className="qt-val">{t.fullname || t.name}</span>
               </div>
+              {bedLabel && (
+                <div className="qt-row">
+                  <span className="qt-key">เตียง</span>
+                  <span className="qt-val">{bedLabel}</span>
+                </div>
+              )}
               {s.price > 0 && (
                 <div className="qt-row">
                   <span className="qt-key">ค่าบริการ</span>

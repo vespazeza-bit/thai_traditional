@@ -49,7 +49,7 @@ function TimeGutter() {
   );
 }
 
-function ApptCard({ a, rowH, onClick }) {
+function ApptCard({ a, rowH, onClick, beds }) {
   const s = svc(a.serviceId) || { name: a.serviceId || '—', dur: 60, price: 0 };
   const st = STATUSES[a.status] || STATUSES["booked"];
   const top = ((a.start - OPEN_MIN) / SLOT) * rowH;
@@ -58,6 +58,7 @@ function ApptCard({ a, rowH, onClick }) {
   const done = a.status === "done";
   const displayName = a.customer || (a.hn ? `HN ${a.hn}` : '—');
   const hnLabel = a.hn ? `HN ${a.hn}` : '';
+  const bed = a.bedId && beds ? beds.find(b => b.id === a.bedId) : null;
   const [tipPos, setTipPos] = useState(null);
 
   return (
@@ -80,6 +81,15 @@ function ApptCard({ a, rowH, onClick }) {
       >
         {hnLabel && <div className="appt-hn">{hnLabel}</div>}
         <div className="appt-name" style={{ color: "var(--ink)" }}>{displayName}</div>
+        {bed && (
+          <div style={{ fontSize: 10, color: st.ink, opacity: .8, marginTop: 1,
+            display: "flex", alignItems: "center", gap: 3 }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 9V4h20v5M2 9h20M2 9v11h20V9M7 15h4M13 15h4"/>
+            </svg>
+            {bed.name}{bed.room ? ` · ห้อง ${bed.room}` : ""}
+          </div>
+        )}
         {(a.status === "service" || a.status === "arrived") && (
           <span className="appt-tag" style={{ color: st.ink }}>
             {a.status === "service" ? "● กำลังนวด" : "มาถึง"}
@@ -91,7 +101,7 @@ function ApptCard({ a, rowH, onClick }) {
   );
 }
 
-function TherapistColumn({ t, appts, rowH, onSlot, onAppt }) {
+function TherapistColumn({ t, appts, rowH, onSlot, onAppt, beds }) {
   const [hover, setHover] = useState(null);
   const bodyRef = useRef(null);
   const nRows = (CLOSE_MIN - OPEN_MIN) / SLOT;
@@ -153,7 +163,7 @@ function TherapistColumn({ t, appts, rowH, onSlot, onAppt }) {
         >
           + {hover != null ? fmtMin(hover) : ""}
         </div>
-        {appts.map(a => <ApptCard key={a.id} a={a} rowH={rowH} onClick={onAppt} />)}
+        {appts.map(a => <ApptCard key={a.id} a={a} rowH={rowH} onClick={onAppt} beds={beds} />)}
       </div>
     </div>
   );
@@ -170,7 +180,7 @@ function NowLine({ rowH, show }) {
   return <div className="now-line" style={{ top }} title={"ตอนนี้ " + fmtMin(min)}></div>;
 }
 
-function Board({ appts, therapists, rowH, onSlot, onAppt, showNow }) {
+function Board({ appts, therapists, rowH, onSlot, onAppt, showNow, beds }) {
   const cols = `72px repeat(${therapists.length}, minmax(var(--col-min), 1fr))`;
   return (
     <div className="board">
@@ -182,7 +192,7 @@ function Board({ appts, therapists, rowH, onSlot, onAppt, showNow }) {
             <TherapistColumn
               key={t.id} t={t} rowH={rowH}
               appts={appts.filter(a => a.therapistId === t.id)}
-              onSlot={onSlot} onAppt={onAppt}
+              onSlot={onSlot} onAppt={onAppt} beds={beds}
             />
           ))}
         </div>
