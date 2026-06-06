@@ -2539,8 +2539,8 @@ function App() {
 
   // ── Queue handlers ─────────────────────────────────────────────────────────
   const handleCallQueue = (appt) => {
-    // Mark as arrived
-    setAppts(p => ({ ...p, [key]: (p[key] || []).map(a => a.id === appt.id ? { ...a, status: "arrived" } : a) }));
+    // Mark as arrived — ใช้ todayKey เสมอ ไม่ขึ้นกับวันที่เลือกใน scheduler
+    setAppts(p => ({ ...p, [todayKey]: (p[todayKey] || []).map(a => a.id === appt.id ? { ...a, status: "arrived" } : a) }));
 
     const bedObj = beds.find(b => b.id === appt.bedId);
     const bedLabel = bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : null;
@@ -2698,8 +2698,11 @@ function App() {
             userInfo={bms.userInfo}
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
-            onUpdateStatus={setApptStatus}
-            dateKey={key}
+            onUpdateStatus={(appt, status) => {
+              setAppts(p => ({ ...p, [todayKey]: (p[todayKey] || []).map(a => a.id === appt.id ? { ...a, status } : a) }));
+              showToast(`อัปเดตเป็น "${STATUSES[status]?.label || status}"`);
+            }}
+            dateKey={todayKey}
             currentQueue={currentQueue}
             queueHistory={queueHistory}
             onCallQueue={handleCallQueue}
