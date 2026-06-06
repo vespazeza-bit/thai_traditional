@@ -284,13 +284,35 @@ function OperationDetail({ item, onClose }) {
 const CUST_PAGE_SIZE = 25;
 
 function CustomersPage({ appts, therapistsData, operationItems,
-  userInfo, therapistStatusText, onDisconnect }) {
+  userInfo, therapistStatusText, onDisconnect, bmsConfig }) {
 
   const [search,    setSearch]    = useState("");
   const [dateFrom,  setDateFrom]  = useState("");
   const [dateTo,    setDateTo]    = useState("");
   const [ptFilter,  setPtFilter]  = useState("");
   const [page,      setPage]      = useState(1);
+  const [pttypeMap, setPttypeMap] = useState({}); // hn → pttype_name จาก HOSxP
+
+  // Build lookup maps directly from props (ไม่ใช้ window.svc/ther เพราะ timing issue)
+  const svcMap = useMemo(() => {
+    const m = {};
+    operationItems.forEach(it => {
+      m[it.id] = {
+        name:  it.name  || '—',
+        dur:   it.minute != null ? Number(it.minute) : (it.dur != null ? Number(it.dur) : null),
+        price: it.price  != null ? Number(it.price)  : null,
+      };
+    });
+    SERVICES.forEach(sv => { if (!m[sv.id]) m[sv.id] = { name: sv.name, dur: sv.dur, price: sv.price }; });
+    return m;
+  }, [operationItems]);
+
+  const therMap = useMemo(() => {
+    const m = {};
+    therapistsData.forEach(t => { m[t.id] = t.fullname || t.name || t.id; });
+    THERAPISTS.forEach(t => { if (!m[t.id]) m[t.id] = t.name; });
+    return m;
+  }, [therapistsData]);
 
   // Flatten appointments from all dates → rows
   const allRows = useMemo(() => {
@@ -298,43 +320,66 @@ function CustomersPage({ appts, therapistsData, operationItems,
     Object.entries(appts).forEach(([dateKey, dayAppts]) => {
       (dayAppts || []).forEach(a => {
         if (a.status === "cancelled") return;
-        const sv = svc(a.serviceId) || {};
-        const th = ther(a.therapistId) || {};
+        const sv = svcMap[a.serviceId] || {};
         rows.push({
           ...a,
           dateKey,
           svcName:  sv.name  || a.serviceId || '—',
-          svcDur:   sv.minute != null ? sv.minute : (sv.dur != null ? sv.dur : '—'),
-          svcPrice: sv.price  != null ? Number(sv.price) : null,
-          therName: th.fullname || th.name || a.therapistId || '—',
+          svcDur:   sv.dur   != null ? sv.dur   : null,
+          svcPrice: sv.price != null ? sv.price : null,
+          therName: therMap[a.therapistId] || a.therapistId || '—',
         });
       });
     });
-    // sort newest date first, then by start time
     return rows.sort((a, b) =>
       b.dateKey.localeCompare(a.dateKey) || a.start - b.start
     );
-  }, [appts, therapistsData, operationItems]);
+  }, [appts, svcMap, therMap]);
 
-  // Unique pttype list for filter dropdown
+  // Enrich สิทธิรักษา from HOSxP for appointments missing pttypeName
+  useEffect(() => {
+    if (!bmsConfig?.apiUrl) return;
+    const needHNs = [...new Set(
+      allRows.filter(r => !r.pttypeName).map(r => r.hn).filter(Boolean)
+    )];
+    if (needHNs.length === 0) return;
+    const inClause = needHNs.map(h => `'${h}'`).join(',');
+    executeSqlViaApi(
+      `SELECT p.hn, MIN(e.name) AS pttype_name FROM patient p
+       INNER JOIN pttype e ON e.pttype = p.pttype
+       WHERE p.hn IN (${inClause}) GROUP BY p.hn`,
+      bmsConfig
+    ).then(rows => {
+      if (!rows || rows.length === 0) return;
+      const map = {};
+      rows.forEach(r => { if (r.hn && r.pttype_name) map[r.hn] = r.pttype_name; });
+      setPttypeMap(prev => ({ ...prev, ...map }));
+    }).catch(() => {});
+  }, [allRows, bmsConfig]);
+
+  // Unique pttype list for filter dropdown (รวมทั้งจาก appointment + HOSxP query)
   const pttypeOptions = useMemo(() => {
-    const set = new Set(allRows.map(r => r.pttypeName).filter(Boolean));
+    const set = new Set([
+      ...allRows.map(r => r.pttypeName),
+      ...allRows.map(r => pttypeMap[r.hn]),
+    ].filter(Boolean));
     return [...set].sort();
-  }, [allRows]);
+  }, [allRows, pttypeMap]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allRows.filter(r => {
+      const pttype = r.pttypeName || pttypeMap[r.hn] || "";
       if (dateFrom && r.dateKey < dateFrom) return false;
       if (dateTo   && r.dateKey > dateTo)   return false;
-      if (ptFilter && r.pttypeName !== ptFilter) return false;
+      if (ptFilter && pttype !== ptFilter)  return false;
       if (q && !(
         (r.hn || "").toLowerCase().includes(q) ||
         (r.customer || "").toLowerCase().includes(q)
       )) return false;
       return true;
     });
-  }, [allRows, search, dateFrom, dateTo, ptFilter]);
+  }, [allRows, pttypeMap, search, dateFrom, dateTo, ptFilter]);
 
   useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, ptFilter]);
 
@@ -356,9 +401,9 @@ function CustomersPage({ appts, therapistsData, operationItems,
       thaiDateStr(r.dateKey),
       r.hn || '',
       r.customer || '',
-      r.pttypeName || '',
+      r.pttypeName || pttypeMap[r.hn] || '',
       r.svcName,
-      r.svcDur,
+      r.svcDur != null ? r.svcDur : '',
       r.therName,
       r.svcPrice != null ? r.svcPrice : '',
       STATUSES[r.status]?.label || r.status || '',
@@ -479,11 +524,12 @@ function CustomersPage({ appts, therapistsData, operationItems,
                 </div>
                 <div className="reg-cell" style={{ flex: 2, fontWeight: 600 }}>{r.customer || '—'}</div>
                 <div className="reg-cell" style={{ width: 110, fontSize: 12, color: "var(--ink-soft)" }}>
-                  {r.pttypeName || <span style={{ color: "var(--ink-faint)" }}>—</span>}
+                  {(r.pttypeName || pttypeMap[r.hn]) ||
+                    <span style={{ color: "var(--ink-faint)" }}>—</span>}
                 </div>
                 <div className="reg-cell" style={{ flex: 3, fontSize: 12, lineHeight: 1.4 }}>{r.svcName}</div>
                 <div className="reg-cell" style={{ width: 70, textAlign: "center", color: "var(--ink-soft)" }}>
-                  {r.svcDur !== '—' ? r.svcDur : <span style={{ color: "var(--ink-faint)" }}>—</span>}
+                  {r.svcDur != null ? r.svcDur : <span style={{ color: "var(--ink-faint)" }}>—</span>}
                 </div>
                 <div className="reg-cell" style={{ flex: 2, fontSize: 12 }}>{r.therName}</div>
                 <div className="reg-cell" style={{ width: 90, textAlign: "right", fontWeight: 700,
@@ -1527,6 +1573,7 @@ function App() {
             userInfo={bms.userInfo}
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
+            bmsConfig={bms.config}
           />
         )}
 
