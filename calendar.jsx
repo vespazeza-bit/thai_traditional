@@ -116,10 +116,28 @@ function TherapistColumn({ t, appts, rowH, onSlot, onAppt }) {
     <div className="therapist-col" style={{ minWidth: "var(--col-min)" }}>
       <div className="col-head">
         <Avatar name={t.name} color={t.color} />
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div className="col-name">{t.name}</div>
           <div className="col-spec">{t.spec}</div>
         </div>
+        {(() => {
+          const activeQ = appts.filter(a => a.status !== "cancelled").length;
+          return activeQ > 0 ? (
+            <div style={{
+              flexShrink: 0,
+              minWidth: 22, height: 22,
+              borderRadius: 11,
+              background: "var(--primary)",
+              color: "#fff",
+              fontSize: 11, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "0 5px",
+              lineHeight: 1,
+            }}>
+              {activeQ}
+            </div>
+          ) : null;
+        })()}
       </div>
       <div
         className="col-body" ref={bodyRef}

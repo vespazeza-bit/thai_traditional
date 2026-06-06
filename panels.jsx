@@ -127,7 +127,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
       const nameWhere = nameCond
         ? `(${nameCond}) OR p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`
         : `p.hn = '${qSafe}' OR p.mobile_phone_number LIKE '%${telSafe}%'`;
-      sql = `SELECT p.hn, ${hx('p.pname')} AS pname, ${hx('p.fname')} AS fname, ${hx('p.lname')} AS lname, p.sex, p.mobile_phone_number, MIN(e.name) AS pttype_name FROM patient p INNER JOIN ovst v ON v.hn = p.hn AND v.vstdate = '${dateSafe}' INNER JOIN pttype e ON e.pttype = v.pttype WHERE (${nameWhere}) GROUP BY p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number ORDER BY p.lname, p.fname LIMIT 20`;
+      sql = `SELECT p.hn, ${hx('p.pname')} AS pname, ${hx('p.fname')} AS fname, ${hx('p.lname')} AS lname, p.sex, p.mobile_phone_number, COALESCE(MIN(ev.name), MIN(ep.name)) AS pttype_name, MAX(CASE WHEN v.vstdate = '${dateSafe}' THEN 1 ELSE 0 END) AS has_visit FROM patient p LEFT JOIN ovst v ON v.hn = p.hn AND v.vstdate = '${dateSafe}' LEFT JOIN visit_pttype vp ON vp.vn = v.vn LEFT JOIN pttype ev ON ev.pttype = vp.pttype LEFT JOIN pttype ep ON ep.pttype = p.pttype WHERE (${nameWhere}) GROUP BY p.hn, p.pname, p.fname, p.lname, p.sex, p.mobile_phone_number ORDER BY has_visit DESC, p.lname, p.fname LIMIT 20`;
     } else {
       const nameCond = words
         .map(w => { const s = escapeSqlStr(w); return `(fname LIKE '%${s}%' OR lname LIKE '%${s}%')`; })
@@ -257,6 +257,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const [note,       setNote]       = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [dupWarn,    setDupWarn]    = useState(null);
+  const [slotConflict, setSlotConflict] = useState(null);
   const [pttypeName, setPttypeName] = useState("");
 
   const isEdit = !!(draft && draft.id);
@@ -429,6 +430,17 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
           <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>ยกเลิก</button>
           <button className="btn-fill"  style={{ flex: 2 }} disabled={!valid}
             onClick={() => {
+              const newDur = (s && s.dur) ? s.dur : 60;
+              // ตรวจสอบการจองซ้ำช่วงเวลา: หมอนวดคนเดียวกัน เวลาทับซ้อนกัน
+              const timeConflict = (existingAppts || []).find(a => {
+                if (a.status === "cancelled") return false;
+                if (a.id === draft?.id) return false;
+                if (a.therapistId !== therapistId) return false;
+                const aDur = (svc(a.serviceId)?.dur) || 60;
+                return a.start < start + newDur && a.start + aDur > start;
+              });
+              if (timeConflict) { setSlotConflict(timeConflict); return; }
+              // ตรวจสอบ HN ซ้ำ (เตือนได้แต่ยังจองได้)
               if (!isEdit && hn) {
                 const dup = (existingAppts || []).find(
                   a => a.hn === hn && a.status !== "cancelled" && a.id !== draft?.id
@@ -444,6 +456,34 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
             <Icon name="check" size={16} /> {isEdit ? "บันทึกการแก้ไข" : "ยืนยันการจอง"}
           </button>
         </div>
+
+        {/* Therapist time-conflict dialog — hard block */}
+        {slotConflict && (
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10, borderRadius: 16,
+          }}>
+            <div style={{
+              background: "var(--surface)", borderRadius: 14, padding: 24, maxWidth: 340,
+              boxShadow: "0 8px 32px rgba(0,0,0,.22)", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>🚫</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8, color: "#dc2626" }}>
+                ไม่สามารถจองได้ — เวลาทับซ้อน
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 16, lineHeight: 1.7 }}>
+                ผู้ให้บริการมีนัดอยู่แล้วช่วง <strong style={{ color: "var(--ink)" }}>
+                  {fmtMin(slotConflict.start)}–{fmtMin(slotConflict.start + ((svc(slotConflict.serviceId)?.dur) || 60))}
+                </strong><br/>
+                ลูกค้า: <strong style={{ color: "var(--ink)" }}>{slotConflict.customer || "—"}</strong><br/>
+                กรุณาเลือกเวลาอื่นหรือผู้ให้บริการท่านอื่น
+              </div>
+              <button className="btn-fill" style={{ width: "100%" }} onClick={() => setSlotConflict(null)}>
+                ตกลง — เลือกเวลาใหม่
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Duplicate HN warning dialog */}
         {dupWarn && (
@@ -477,88 +517,186 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   );
 }
 
-// ── Detail panel ──────────────────────────────────────────────────────────────
+// ── Detail / Edit panel (modal) ───────────────────────────────────────────────
 
-function DetailPanel({ open, onClose, appt, onStatus, onCancel }) {
-  if (!appt) return <Drawer open={open} onClose={onClose} title="รายละเอียดนัด"><div /></Drawer>;
-  const s  = svc(appt.serviceId)   || { name: appt.serviceId   || '—', dur: 60, price: 0 };
-  const t  = ther(appt.therapistId) || { name: appt.therapistId || '—', color: 'clay', spec: '—' };
-  const st = STATUSES[appt.status]  || STATUSES.booked;
+function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, services }) {
+  const serviceList = services || SERVICES;
+  const [serviceId,   setServiceId]   = useState("");
+  const [therapistId, setTherapistId] = useState("");
+  const [start,       setStart]       = useState(OPEN_MIN);
+  const [status,      setStatus]      = useState("booked");
+
+  useEffect(() => {
+    if (open && appt) {
+      setServiceId(appt.serviceId || serviceList[0]?.id || "");
+      setTherapistId(appt.therapistId || therapists?.[0]?.id || "");
+      setStart(appt.start ?? OPEN_MIN);
+      setStatus(appt.status || "booked");
+    }
+  }, [open, appt]);
+
+  if (!open || !appt) return null;
+
+  const s  = serviceList.find(sv => sv.id === serviceId) || svc(serviceId) || { name: serviceId || '—', dur: 60, price: 0 };
+  const t  = (therapists || []).find(tt => tt.id === therapistId) || ther(therapistId) || { name: therapistId || '—', color: 'clay' };
+  const cancelled = appt.status === "cancelled";
+
+  const timeOpts = [];
+  for (let m = OPEN_MIN; m <= CLOSE_MIN - 30; m += SLOT) timeOpts.push(m);
+
+  const handleSave = () => {
+    onSave({ ...appt, serviceId, therapistId, start, status });
+    onClose();
+  };
+
   return (
-    <Drawer
-      open={open} onClose={onClose} title="รายละเอียดนัด"
-      foot={
-        appt.status === "cancelled" || appt.status === "done" ? (
-          <button className="btn-ghost" onClick={onClose}>ปิด</button>
-        ) : (
-          <>
-            <button className="btn-ghost btn-danger" onClick={() => onCancel(appt)}>ยกเลิกนัด</button>
-            <button className="btn-ghost" onClick={onClose}>ปิด</button>
-          </>
-        )
-      }
-    >
-      <div className="detail-hero">
-        <Avatar name={appt.customer} color={t.color} size={54} />
-        <div style={{ minWidth: 0 }}>
-          <div className="detail-big-name">{appt.customer}</div>
-          <div className="detail-sub">{appt.phone || "ไม่ระบุเบอร์"}</div>
-          {appt.hn && (
-            <div className="hn-badge" style={{ marginTop: 6, display: 'inline-flex' }}>
-              <Icon name="users" size={13} /> HN {appt.hn}
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card booking-modal fade-up" style={{ position: "relative" }}>
+
+        {/* Header */}
+        <div className="modal-head">
+          <div className="drawer-title">แก้ไขการจองนัด</div>
+          <button className="icon-btn" onClick={onClose}><Icon name="close" /></button>
+        </div>
+
+        {/* Body: 2 columns */}
+        <div className="booking-body">
+
+          {/* ── Left column ── */}
+          <div className="booking-left">
+
+            {/* Patient hero */}
+            <div className="detail-hero" style={{ paddingBottom: 14, borderBottom: "1px solid var(--line-soft)", marginBottom: 4 }}>
+              <Avatar name={appt.customer || "?"} color={t.color || "clay"} size={48} />
+              <div style={{ minWidth: 0 }}>
+                <div className="detail-big-name" style={{ fontSize: 17 }}>{appt.customer || "—"}</div>
+                <div className="detail-sub">{appt.phone || "ไม่ระบุเบอร์"}</div>
+                {appt.hn && (
+                  <div className="hn-badge" style={{ marginTop: 4, display: "inline-flex" }}>
+                    <Icon name="users" size={12} /> HN {appt.hn}
+                  </div>
+                )}
+                <div style={{ marginTop: 6 }}><Pill status={appt.status} /></div>
+              </div>
             </div>
+
+            {/* บริการที่เลือก (display only — เปลี่ยนได้จากคอลัมน์ขวา) */}
+            <div className="kv" style={{ background: "var(--primary-tint)", borderRadius: 10, padding: "10px 12px", margin: "0 -2px" }}>
+              <div className="kv-ic"><Icon name="leaf" size={17} /></div>
+              <div style={{ minWidth: 0 }}>
+                <div className="kv-k">บริการ</div>
+                <div className="kv-v" style={{ fontWeight: 600 }}>{s.name}</div>
+              </div>
+            </div>
+
+            {/* เวลา (auto from start + dur) */}
+            <div className="kv">
+              <div className="kv-ic"><Icon name="clock" size={17} /></div>
+              <div>
+                <div className="kv-k">เวลา</div>
+                <div className="kv-v">{fmtMin(start)}–{fmtMin(start + (s.dur || 60))} ({s.dur || 60} นาที)</div>
+              </div>
+            </div>
+
+            {/* หมอนวด + เวลาเริ่มต้น (editable) */}
+            <div className="row2">
+              <div className="field">
+                <label>หมอนวด</label>
+                <select className="select" value={therapistId} onChange={e => setTherapistId(e.target.value)}>
+                  {(therapists || []).map(tt => (
+                    <option key={tt.id} value={tt.id}>{tt.fullname || tt.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>เวลาเริ่มต้น</label>
+                <select className="select" value={start} onChange={e => setStart(+e.target.value)}>
+                  {timeOpts.map(m => <option key={m} value={m}>{fmtMin(m)}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* ค่าบริการ */}
+            <div className="kv">
+              <div className="kv-ic"><Icon name="money" size={17} /></div>
+              <div>
+                <div className="kv-k">ค่าบริการ</div>
+                <div className="kv-v">{s.price ? Number(s.price).toLocaleString() + " บาท" : "—"}</div>
+              </div>
+            </div>
+
+            {/* หมายเหตุ */}
+            {appt.note && (
+              <div className="kv">
+                <div className="kv-ic"><Icon name="note" size={17} /></div>
+                <div>
+                  <div className="kv-k">หมายเหตุ</div>
+                  <div className="kv-v" style={{ fontWeight: 500 }}>{appt.note}</div>
+                </div>
+              </div>
+            )}
+
+            {/* อัปเดตสถานะ */}
+            {!cancelled && (
+              <div className="field">
+                <label>อัปเดตสถานะ</label>
+                <div className="status-flow">
+                  {STATUS_ORDER.map(key => {
+                    const on = status === key;
+                    const si = STATUSES[key];
+                    return (
+                      <button key={key} className={"status-opt" + (on ? " on" : "")}
+                        style={on ? { borderColor: si.ink, background: si.bg, color: si.ink } : {}}
+                        onClick={() => setStatus(key)}>
+                        <span className="dot" style={{ width: 9, height: 9, borderRadius: "50%", background: si.ink }} />
+                        {si.label}
+                        {on && <span style={{ marginLeft: "auto" }}><Icon name="check" size={16} /></span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Right column: เลือกบริการ ── */}
+          <div className="booking-right">
+            <div className="field">
+              <label>เลือกบริการ</label>
+              <div className="choice-grid-v">
+                {serviceList.map(sv => (
+                  <button key={sv.id} className={"choice" + (serviceId === sv.id ? " on" : "")}
+                    onClick={() => setServiceId(sv.id)}>
+                    <div className="choice-name">{sv.name}</div>
+                    <div className="choice-meta">
+                      {sv.dur  && <span><Icon name="clock" size={12} /> {sv.dur} นาที</span>}
+                      {sv.price && <span style={{ fontWeight: 700 }}>{Number(sv.price).toLocaleString()}฿</span>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="modal-foot" style={{ display: "flex", gap: 10 }}>
+          {!cancelled && (
+            <button className="btn-ghost btn-danger" style={{ marginRight: "auto" }}
+              onClick={() => { onCancel(appt); onClose(); }}>
+              ยกเลิกนัด
+            </button>
           )}
-          <div style={{ marginTop: 7 }}><Pill status={appt.status} /></div>
+          <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
+          {!cancelled && (
+            <button className="btn-fill" style={{ flex: 2 }} onClick={handleSave}>
+              <Icon name="check" size={16} /> บันทึก
+            </button>
+          )}
+          {cancelled && <button className="btn-ghost" onClick={onClose}>ปิด</button>}
         </div>
       </div>
-
-      <div>
-        <div className="kv">
-          <div className="kv-ic"><Icon name="leaf" size={17} /></div>
-          <div><div className="kv-k">บริการ</div><div className="kv-v">{s.name}</div></div>
-        </div>
-        <div className="kv">
-          <div className="kv-ic"><Icon name="clock" size={17} /></div>
-          <div><div className="kv-k">เวลา</div><div className="kv-v">{fmtMin(appt.start)}–{fmtMin(appt.start + s.dur)} ({s.dur} นาที)</div></div>
-        </div>
-        <div className="kv">
-          <div className="kv-ic"><Icon name="user" size={17} /></div>
-          <div><div className="kv-k">หมอนวด</div><div className="kv-v">{t.name} · {t.spec}</div></div>
-        </div>
-        <div className="kv">
-          <div className="kv-ic"><Icon name="money" size={17} /></div>
-          <div><div className="kv-k">ค่าบริการ</div><div className="kv-v">{s.price} บาท</div></div>
-        </div>
-        {appt.note && (
-          <div className="kv">
-            <div className="kv-ic"><Icon name="note" size={17} /></div>
-            <div><div className="kv-k">หมายเหตุ</div><div className="kv-v" style={{ fontWeight: 500 }}>{appt.note}</div></div>
-          </div>
-        )}
-      </div>
-
-      {appt.status !== "cancelled" && (
-        <div className="field">
-          <label>อัปเดตสถานะ</label>
-          <div className="status-flow">
-            {STATUS_ORDER.map(key => {
-              const on = appt.status === key;
-              const sinfo = STATUSES[key];
-              return (
-                <button key={key} className={"status-opt" + (on ? " on" : "")}
-                  style={on ? { borderColor: sinfo.ink, background: sinfo.bg, color: sinfo.ink } : {}}
-                  onClick={() => onStatus(appt, key)}>
-                  <span className="dot" style={{ width: 9, height: 9, borderRadius: "50%",
-                    background: sinfo.ink }}></span>
-                  {sinfo.label}
-                  {on && <span style={{ marginLeft: "auto" }}><Icon name="check" size={16} /></span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </Drawer>
+    </div>
   );
 }
 
@@ -668,4 +806,134 @@ function ServiceForm({ open, onClose, service, onSave }) {
   );
 }
 
-Object.assign(window, { BookingForm, DetailPanel, Drawer, ServiceForm });
+// ── Queue Ticket Print Modal ──────────────────────────────────────────────────
+
+function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose }) {
+  if (!appt) return null;
+  const sl = services || SERVICES;
+  const s  = sl.find(sv => sv.id === appt.serviceId) || svc(appt.serviceId) || { name: appt.serviceId || '—', dur: 60, price: 0 };
+  const tl = therapists || [];
+  const t  = tl.find(tt => tt.id === appt.therapistId) || ther(appt.therapistId) || { name: appt.therapistId || '—' };
+
+  const pad2 = n => String(n).padStart(2, '0');
+  const thaiDate = d => {
+    if (!d) return '';
+    const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
+    return `${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear() + 543}`;
+  };
+  const qNum = String(queueNo || 1).padStart(3, '0');
+  const dateStr = thaiDate(date || new Date());
+  const timeStr = fmtMin(appt.start);
+  const timeEnd = fmtMin(appt.start + (s.dur || 60));
+
+  const handlePrint = () => {
+    const el = document.getElementById('queue-ticket-print');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap');
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:'IBM Plex Sans Thai',sans-serif;background:#fff;display:flex;justify-content:center;padding:20px;}
+      .queue-ticket{width:300px;border:2px solid #2d6a4f;border-radius:16px;overflow:hidden;background:#fff;}
+      .qt-header{background:linear-gradient(135deg,#2d6a4f,#52b788);padding:14px 18px;color:#fff;text-align:center;}
+      .qt-band{border-top:3px dashed #74c69d;border-bottom:3px dashed #74c69d;padding:16px 18px;text-align:center;background:#fff;}
+      .qt-label{font-size:10px;color:#888;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
+      .qt-number{font-size:68px;font-weight:700;color:#2d6a4f;line-height:1;letter-spacing:.02em;}
+      .qt-date{font-size:13px;color:#555;margin-top:4px;}
+      .qt-body{padding:10px 16px 14px;}
+      .qt-row{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f0f0f0;gap:8px;}
+      .qt-row:last-child{border-bottom:none;}
+      .qt-key{font-size:11px;color:#888;font-weight:600;white-space:nowrap;min-width:64px;}
+      .qt-val{font-size:13px;color:#1a1a1a;font-weight:600;text-align:right;flex:1;}
+      .qt-footer{background:#f0f7f4;padding:8px 16px;text-align:center;font-size:10.5px;color:#666;border-top:1px solid #d0e8dc;}
+    </style></head><body>${el.outerHTML}</body></html>`;
+    const w = window.open('', '_blank', 'width=400,height=600');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 400);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card fade-up" style={{ width: 400, maxWidth: "95vw" }}>
+        <div className="modal-head">
+          <div className="drawer-title">บัตรคิวนัดหมาย</div>
+          <button className="icon-btn" onClick={onClose}><Icon name="close" /></button>
+        </div>
+
+        <div className="modal-body" style={{ padding: "24px", display: "flex", justifyContent: "center" }}>
+          {/* ─── Ticket Design ─── */}
+          <div id="queue-ticket-print" className="queue-ticket">
+            {/* Header */}
+            <div className="qt-header">
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".06em" }}>THAI MED SCHEDULER</div>
+              <div style={{ fontSize: 11, opacity: .85, marginTop: 2 }}>ระบบจัดการคิวแพทย์แผนไทย</div>
+            </div>
+
+            {/* Queue number band */}
+            <div className="qt-band">
+              <div className="qt-label">หมายเลขคิว / QUEUE NO.</div>
+              <div className="qt-number">{qNum}</div>
+              <div className="qt-date">{dateStr}</div>
+            </div>
+
+            {/* Info rows */}
+            <div className="qt-body">
+              <div className="qt-row">
+                <span className="qt-key">ชื่อ-สกุล</span>
+                <span className="qt-val">{appt.customer || '—'}</span>
+              </div>
+              {appt.hn && (
+                <div className="qt-row">
+                  <span className="qt-key">HN</span>
+                  <span className="qt-val" style={{ fontFamily: "monospace" }}>{appt.hn}</span>
+                </div>
+              )}
+              <div className="qt-row">
+                <span className="qt-key">บริการ</span>
+                <span className="qt-val">{s.name}</span>
+              </div>
+              <div className="qt-row">
+                <span className="qt-key">เวลานัด</span>
+                <span className="qt-val">{timeStr}–{timeEnd} ({s.dur || 60} นาที)</span>
+              </div>
+              <div className="qt-row">
+                <span className="qt-key">ผู้ให้บริการ</span>
+                <span className="qt-val">{t.fullname || t.name}</span>
+              </div>
+              {s.price > 0 && (
+                <div className="qt-row">
+                  <span className="qt-key">ค่าบริการ</span>
+                  <span className="qt-val" style={{ color: "var(--primary-deep)", fontWeight: 700 }}>
+                    {Number(s.price).toLocaleString()} บาท
+                  </span>
+                </div>
+              )}
+              {appt.note && (
+                <div className="qt-row">
+                  <span className="qt-key">หมายเหตุ</span>
+                  <span className="qt-val">{appt.note}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="qt-footer">
+              กรุณาแสดงบัตรนี้เมื่อมาถึง · กรุณามาก่อนเวลานัด 10 นาที
+            </div>
+          </div>
+        </div>
+
+        <div className="modal-foot" style={{ gap: 10 }}>
+          <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>ปิด</button>
+          <button className="btn-primary" style={{ flex: 2 }} onClick={handlePrint}>
+            <Icon name="note" size={16} /> พิมพ์บัตรคิว
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { BookingForm, DetailPanel, Drawer, ServiceForm, QueueTicketModal });

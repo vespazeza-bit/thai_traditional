@@ -3,7 +3,7 @@
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "herbal",
   "density": "regular",
-  "fontFamily": "IBM Plex Sans Thai",
+  "fontFamily": "Sarabun",
   "showNow": true,
   "showSat": true
 }/*EDITMODE-END*/;
@@ -104,13 +104,35 @@ function LoginScreen({ onConnect, loading, error }) {
     <div className="login-wrap">
       <div className="login-card fade-up">
         <div className="login-logo">
-          <div className="brand-mark" style={{ width: 64, height: 64, borderRadius: 20, boxShadow: "var(--shadow)" }}>
-            <Icon name="leaf" size={30} />
+          <div className="brand-mark" style={{ width: 64, height: 64, borderRadius: 20, background: "linear-gradient(135deg, oklch(0.38 0.07 162), oklch(0.52 0.08 148) 55%, oklch(0.68 0.14 85))", boxShadow: "0 4px 20px oklch(0.38 0.07 162 / .4)" }}>
+            <svg width="38" height="38" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Clock ring */}
+              <circle cx="20" cy="24" r="11" stroke="rgba(255,255,255,0.92)" strokeWidth="2"/>
+              {/* Tick marks */}
+              {[0,60,120,180,240,300].map(deg => {
+                const r = (Math.PI/180)*deg;
+                const x1 = 20 + 9.2*Math.sin(r), y1 = 24 - 9.2*Math.cos(r);
+                const x2 = 20 + 11*Math.sin(r),  y2 = 24 - 11*Math.cos(r);
+                return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>;
+              })}
+              {/* Hour hand → 10 o'clock */}
+              <line x1="20" y1="24" x2="14.5" y2="18.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
+              {/* Minute hand → 12 */}
+              <line x1="20" y1="24" x2="20" y2="15" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
+              {/* Center dot */}
+              <circle cx="20" cy="24" r="1.5" fill="#fff"/>
+              {/* Leaf left */}
+              <path d="M20 13C19.5 11.5 17.5 9.5 15.5 9c-.5 2 .5 4.5 4.5 4z" fill="#fff" fillOpacity=".9"/>
+              {/* Leaf right */}
+              <path d="M20 13C20.5 11.5 22.5 9.5 24.5 9c.5 2-.5 4.5-4.5 4z" fill="#fff" fillOpacity=".75"/>
+              {/* Stem */}
+              <line x1="20" y1="13" x2="20" y2="13" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
           </div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div className="login-brand">เรือนสมุนไพร</div>
-          <div className="login-title">ระบบจัดตารางนัดหมอนวด</div>
+          <div className="login-brand">ThaiMed Scheduler</div>
+          <div className="login-title">ระบบจัดการคิวนัดหมายบริการแพทย์แผนไทย</div>
         </div>
         <div className="login-divider" />
         <div className="login-section-label">เชื่อมต่อระบบ HOSxP</div>
@@ -147,7 +169,6 @@ function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
           {userInfo.name  && <span className="session-name">{userInfo.name}</span>}
           {userInfo.location && <span className="session-loc">{userInfo.location}</span>}
           {!userInfo.name && !userInfo.location && <span className="session-name">HOSxP</span>}
-          {therapistStatus && <span className="session-loc">{therapistStatus}</span>}
         </div>
         <button className="session-disconnect" onClick={onDisconnect}><Icon name="close" size={14} /> ออก</button>
       </div>
@@ -160,18 +181,33 @@ function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
 function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   const nav = [
     { id: "sched",  icon: "calendar", label: "ตารางนัด" },
-    { id: "cust",   icon: "users",    label: "ลูกค้า" },
-    { id: "ther",   icon: "user",     label: "หมอนวด" },
-    { id: "svc",    icon: "leaf",     label: "บริการ" },
+    { id: "cust",   icon: "users",    label: "ผู้รับบริการ" },
+    { id: "ther",   icon: "user",     label: "ผู้ให้บริการ" },
+    { id: "svc",    icon: "leaf",     label: "บริการแพทย์แผนไทย" },
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
-        <div className="brand-mark"><Icon name="leaf" size={20} /></div>
+        <div className="brand-mark" style={{ background: "linear-gradient(135deg, oklch(0.38 0.07 162), oklch(0.52 0.08 148) 55%, oklch(0.68 0.14 85))" }}>
+          <svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="24" r="11" stroke="rgba(255,255,255,0.9)" strokeWidth="2"/>
+            {[0,90,180,270].map(deg => {
+              const r = (Math.PI/180)*deg;
+              const x1 = 20 + 9.2*Math.sin(r), y1 = 24 - 9.2*Math.cos(r);
+              const x2 = 20 + 11*Math.sin(r),  y2 = 24 - 11*Math.cos(r);
+              return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>;
+            })}
+            <line x1="20" y1="24" x2="14.5" y2="18.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
+            <line x1="20" y1="24" x2="20" y2="15" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
+            <circle cx="20" cy="24" r="1.5" fill="#fff"/>
+            <path d="M20 13C19.5 11.5 17.5 9.5 15.5 9c-.5 2 .5 4.5 4.5 4z" fill="#fff" fillOpacity=".9"/>
+            <path d="M20 13C20.5 11.5 22.5 9.5 24.5 9c.5 2-.5 4.5-4.5 4z" fill="#fff" fillOpacity=".75"/>
+          </svg>
+        </div>
         <div className="brand-text">
-          <div className="brand-name">เรือนสมุนไพร</div>
-          <div className="brand-sub">นวดแผนไทย</div>
+          <div className="brand-name">ThaiMed Scheduler</div>
+          <div className="brand-sub">แพทย์แผนไทย</div>
         </div>
       </div>
       <div className="nav-section">เมนูหลัก</div>
@@ -280,8 +316,158 @@ function OperationDetail({ item, onClose }) {
   );
 }
 
+// ── Mini calendar date picker ─────────────────────────────────────────────────
+const THAI_MONTHS_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const CAL_DAY_HDR = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+
+function MiniCalendar({ value, onChange, onClose, anchorRect }) {
+  const today = new Date();
+  const todayStr = [today.getFullYear(), String(today.getMonth()+1).padStart(2,'0'), String(today.getDate()).padStart(2,'0')].join('-');
+  const initDate = value ? new Date(value + 'T00:00:00') : today;
+  const [viewYear,  setViewYear]  = useState(initDate.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initDate.getMonth());
+
+  const prevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y-1); } else setViewMonth(m => m-1); };
+  const nextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y+1); } else setViewMonth(m => m+1); };
+
+  const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const daysInPrev  = new Date(viewYear, viewMonth, 0).getDate();
+  const cells = [];
+  for (let i = firstDay-1; i >= 0; i--) {
+    const pm = viewMonth === 0 ? 11 : viewMonth-1;
+    cells.push({ day: daysInPrev-i, month: pm, year: viewMonth === 0 ? viewYear-1 : viewYear, cur: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, month: viewMonth, year: viewYear, cur: true });
+  const rem = 42 - cells.length;
+  for (let d = 1; d <= rem; d++) {
+    const nm = viewMonth === 11 ? 0 : viewMonth+1;
+    cells.push({ day: d, month: nm, year: viewMonth === 11 ? viewYear+1 : viewYear, cur: false });
+  }
+  const toStr = c => `${c.year}-${String(c.month+1).padStart(2,'0')}-${String(c.day).padStart(2,'0')}`;
+
+  const style = { position: 'fixed', zIndex: 10000 };
+  if (anchorRect) {
+    const vpW = window.innerWidth;
+    style.top  = anchorRect.bottom + 4;
+    style.left = Math.min(anchorRect.left, vpW - 306);
+  }
+
+  return ReactDOM.createPortal(
+    <div className="cal-picker" style={style} onMouseDown={e => e.stopPropagation()}>
+      <div className="cal-picker-head">
+        <button className="cal-nav-btn" onClick={() => setViewYear(y => y-1)} title="ปีก่อน">«</button>
+        <button className="cal-nav-btn" onClick={prevMonth} title="เดือนก่อน">‹</button>
+        <span className="cal-picker-title">{THAI_MONTHS_FULL[viewMonth]} {viewYear+543}</span>
+        <button className="cal-nav-btn" onClick={nextMonth} title="เดือนถัดไป">›</button>
+        <button className="cal-nav-btn" onClick={() => setViewYear(y => y+1)} title="ปีถัดไป">»</button>
+      </div>
+      <div className="cal-picker-days">
+        {CAL_DAY_HDR.map((d, i) => <div key={i} className={"cal-day-hd"+(i===0?" sun":"")}>{d}</div>)}
+      </div>
+      <div className="cal-picker-grid">
+        {cells.map((c, i) => {
+          const str = toStr(c);
+          return (
+            <button key={i}
+              className={"cal-day"+(!c.cur?" other":"")+(str===todayStr?" today":"")+(str===value?" selected":"")+(i%7===0?" sun":"")}
+              onClick={() => { onChange(str); onClose(); }}>
+              {c.day}
+            </button>
+          );
+        })}
+      </div>
+      <div className="cal-picker-foot">
+        <button className="cal-foot-btn clear" onClick={() => { onChange(""); onClose(); }}>ล้าง</button>
+        <button className="cal-foot-btn today-btn" onClick={() => { onChange(todayStr); onClose(); }}>วันนี้</button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function DatePickerInput({ label, value, onChange, placeholder = "เลือกวันที่" }) {
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleToggle = () => {
+    if (ref.current) setRect(ref.current.getBoundingClientRect());
+    setOpen(o => !o);
+  };
+
+  const display = (() => {
+    if (!value) return '';
+    const [y, m, d] = value.split('-');
+    const mo = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `${Number(d)} ${mo[Number(m)]} ${Number(y)+543}`;
+  })();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {label && <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>{label}</label>}
+      <div ref={ref} className={"input cal-trigger"+(open?" active":"")}
+        style={{ width: 148, fontSize: 13, padding: "6px 10px", color: value ? "var(--ink)" : "var(--ink-faint)" }}
+        onClick={handleToggle}>
+        <span>{display || placeholder}</span>
+        <Icon name="calendar" size={13} />
+      </div>
+      {open && <MiniCalendar value={value} onChange={onChange} onClose={() => setOpen(false)} anchorRect={rect} />}
+    </div>
+  );
+}
+
+// ── Auto page size: วัด DOM จริงเพื่อคำนวณแถว/หน้าที่พอดีกับหน้าจอ ─────────────
+function useAutoPageSize(contentRef, rowH = 52) {
+  const [ps, setPs] = useState(10);
+
+  const calc = React.useCallback(() => {
+    const el = contentRef.current;
+    if (!el || el.clientHeight === 0) return;
+    const totalH = el.clientHeight;
+    const gap  = parseFloat(getComputedStyle(el).gap)         || 0;
+    const padT = parseFloat(getComputedStyle(el).paddingTop)  || 0;
+    const padB = parseFloat(getComputedStyle(el).paddingBottom)|| 0;
+    let overhead = padT + padB;
+    let nonTableCount = 0;
+    for (const child of el.children) {
+      if (!child.classList.contains('reg-table')) {
+        overhead += child.offsetHeight;
+        nonTableCount++;
+      }
+    }
+    overhead += gap * (nonTableCount + 1); // gaps including gap before table
+    const head = el.querySelector('.reg-head');
+    overhead += head ? head.offsetHeight : 42;
+    setPs(Math.max(3, Math.floor((totalH - overhead) / rowH)));
+  }, [rowH]);
+
+  useEffect(() => {
+    // รอ 2 animation frames ให้ layout settle ก่อนวัด
+    const raf = requestAnimationFrame(() => requestAnimationFrame(calc));
+    const ro = new ResizeObserver(calc);
+    if (contentRef.current) ro.observe(contentRef.current);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [calc]);
+
+  // recalc เมื่อ ps เปลี่ยน (rows เปลี่ยนทำให้ layout เปลี่ยน)
+  useEffect(() => {
+    const raf = requestAnimationFrame(calc);
+    return () => cancelAnimationFrame(raf);
+  }, [ps, calc]);
+
+  return ps;
+}
+
 // ── Customers page (ทะเบียนคนไข้จากการจองนัด) ────────────────────────────────
-const CUST_PAGE_SIZE = 25;
 
 function CustomersPage({ appts, therapistsData, operationItems,
   userInfo, therapistStatusText, onDisconnect, bmsConfig }) {
@@ -292,6 +478,8 @@ function CustomersPage({ appts, therapistsData, operationItems,
   const [ptFilter,  setPtFilter]  = useState("");
   const [page,      setPage]      = useState(1);
   const [pttypeMap, setPttypeMap] = useState({}); // hn → pttype_name จาก HOSxP
+  const contentRef = useRef(null);
+  const pageSize   = useAutoPageSize(contentRef, 52);
 
   // Build lookup maps directly from props (ไม่ใช้ window.svc/ther เพราะ timing issue)
   const svcMap = useMemo(() => {
@@ -336,18 +524,22 @@ function CustomersPage({ appts, therapistsData, operationItems,
     );
   }, [appts, svcMap, therMap]);
 
-  // Enrich สิทธิรักษา from HOSxP for appointments missing pttypeName
+  // Enrich สิทธิรักษา from HOSxP via ovst → visit_pttype → pttype (by date range)
   useEffect(() => {
     if (!bmsConfig?.apiUrl) return;
-    const needHNs = [...new Set(
-      allRows.filter(r => !r.pttypeName).map(r => r.hn).filter(Boolean)
-    )];
-    if (needHNs.length === 0) return;
-    const inClause = needHNs.map(h => `'${h}'`).join(',');
+    const needRows = allRows.filter(r => !r.pttypeName && r.hn && r.dateKey);
+    if (needRows.length === 0) return;
+    const dates = needRows.map(r => r.dateKey);
+    const minDate = dates.reduce((a, b) => a < b ? a : b);
+    const maxDate = dates.reduce((a, b) => a > b ? a : b);
     executeSqlViaApi(
-      `SELECT p.hn, MIN(e.name) AS pttype_name FROM patient p
-       INNER JOIN pttype e ON e.pttype = p.pttype
-       WHERE p.hn IN (${inClause}) GROUP BY p.hn`,
+      `SELECT o.hn, MIN(e.name) AS pttype_name
+       FROM ovst o
+       INNER JOIN visit_pttype v ON v.vn = o.vn
+       INNER JOIN patient p ON p.hn = o.hn
+       INNER JOIN pttype e ON e.pttype = v.pttype
+       WHERE o.vstdate BETWEEN '${minDate}' AND '${maxDate}'
+       GROUP BY o.hn`,
       bmsConfig
     ).then(rows => {
       if (!rows || rows.length === 0) return;
@@ -383,8 +575,8 @@ function CustomersPage({ appts, therapistsData, operationItems,
 
   useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, ptFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / CUST_PAGE_SIZE));
-  const pageRows   = filtered.slice((page - 1) * CUST_PAGE_SIZE, page * CUST_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageRows   = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const thaiDateStr = (d) => {
     if (!d) return '—';
@@ -424,7 +616,7 @@ function CustomersPage({ appts, therapistsData, operationItems,
     <>
       <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
         <div>
-          <div className="page-title">ทะเบียนลูกค้า</div>
+          <div className="page-title">ทะเบียนผู้รับบริการแพทย์แผนไทย</div>
           <div className="page-sub">รายการจองนัดทั้งหมด · {allRows.length} รายการ</div>
         </div>
         <button className="btn-primary" onClick={exportCSV}
@@ -433,21 +625,11 @@ function CustomersPage({ appts, therapistsData, operationItems,
         </button>
       </TopBar>
 
-      <div className="svc-content" style={{ gap: 12 }}>
+      <div ref={contentRef} className="svc-content" style={{ gap: 12 }}>
         {/* ── Filter bar ── */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
-          {/* Date from */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>วันที่เริ่ม</label>
-            <input type="date" className="input" style={{ width: 148, fontSize: 13, padding: "6px 10px" }}
-              value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          {/* Date to */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>ถึงวันที่</label>
-            <input type="date" className="input" style={{ width: 148, fontSize: 13, padding: "6px 10px" }}
-              value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
+          <DatePickerInput label="วันที่เริ่ม" value={dateFrom} onChange={setDateFrom} />
+          <DatePickerInput label="ถึงวันที่"  value={dateTo}   onChange={setDateTo} />
           {/* Search */}
           <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 180 }}>
             <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>ค้นหา HN / ชื่อ-สกุล</label>
@@ -478,18 +660,18 @@ function CustomersPage({ appts, therapistsData, operationItems,
         {/* ── Summary row ── */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-            แสดง {filtered.length === 0 ? 0 : (page - 1) * CUST_PAGE_SIZE + 1}–{Math.min(page * CUST_PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ
+            แสดง {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} จาก {filtered.length} รายการ
           </div>
           {totalPages > 1 && (
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              <button className="btn-ghost" style={{ padding: "4px 14px", fontSize: 13, whiteSpace: "nowrap" }}
                 disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 <Icon name="chevL" size={13} /> ก่อนหน้า
               </button>
-              <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 70, textAlign: "center" }}>
+              <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 80, textAlign: "center", whiteSpace: "nowrap" }}>
                 หน้า {page} / {totalPages}
               </span>
-              <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              <button className="btn-ghost" style={{ padding: "4px 14px", fontSize: 13, whiteSpace: "nowrap" }}
                 disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                 ถัดไป <Icon name="chevR" size={13} />
               </button>
@@ -513,7 +695,7 @@ function CustomersPage({ appts, therapistsData, operationItems,
           </div>
 
           {pageRows.map((r, i) => {
-            const globalIdx = (page - 1) * CUST_PAGE_SIZE + i + 1;
+            const globalIdx = (page - 1) * pageSize + i + 1;
             const st = STATUSES[r.status] || STATUSES.booked;
             return (
               <div key={r.id} className="reg-row">
@@ -553,40 +735,54 @@ function CustomersPage({ appts, therapistsData, operationItems,
           )}
         </div>
 
-        {/* Bottom pagination */}
-        {totalPages > 1 && (
-          <div style={{ display: "flex", justifyContent: "center", gap: 4, flexWrap: "wrap", paddingBottom: 8 }}>
-            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
-              disabled={page <= 1} onClick={() => setPage(1)} title="หน้าแรก">«</button>
-            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
-              disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-              <Icon name="chevL" size={13} /> ก่อนหน้า
-            </button>
-            {(() => {
-              const pages = [];
-              const delta = 2;
-              const left  = Math.max(1, page - delta);
-              const right = Math.min(totalPages, page + delta);
-              if (left > 1) { pages.push(1); if (left > 2) pages.push("…"); }
-              for (let pg = left; pg <= right; pg++) pages.push(pg);
-              if (right < totalPages) { if (right < totalPages - 1) pages.push("…"); pages.push(totalPages); }
-              return pages.map((pg, idx) =>
-                pg === "…"
-                  ? <span key={"d"+idx} style={{ padding: "0 4px", color: "var(--ink-faint)" }}>…</span>
-                  : <button key={pg}
-                      className={pg === page ? "btn-primary" : "btn-ghost"}
-                      style={{ padding: "4px 10px", fontSize: 13, minWidth: 34 }}
-                      onClick={() => setPage(pg)}>{pg}</button>
-              );
-            })()}
-            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
-              disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-              ถัดไป <Icon name="chevR" size={13} />
-            </button>
-            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
-              disabled={page >= totalPages} onClick={() => setPage(totalPages)} title="หน้าสุดท้าย">»</button>
-          </div>
-        )}
+        {/* ── Summary footer ── */}
+        {(() => {
+          const totalIncome   = filtered.reduce((s, r) => s + (r.svcPrice != null ? Number(r.svcPrice) : 0), 0);
+          const doneCount     = filtered.filter(r => r.status === "done").length;
+          const doneIncome    = filtered.filter(r => r.status === "done")
+                                        .reduce((s, r) => s + (r.svcPrice != null ? Number(r.svcPrice) : 0), 0);
+          return (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "flex-end",
+              flexWrap: "wrap", gap: 0,
+              borderTop: "2px solid var(--line)",
+              paddingTop: 14, paddingBottom: 8,
+            }}>
+              <div style={{
+                display: "flex", alignItems: "stretch", gap: 0,
+                background: "var(--surface-2)", borderRadius: 12,
+                border: "1px solid var(--line)", overflow: "hidden",
+              }}>
+                {/* total rows */}
+                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2, borderRight: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>จำนวนรายการ</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>{filtered.length.toLocaleString()}</span>
+                </div>
+                {/* done count */}
+                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2, borderRight: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>เสร็จสิ้น</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "var(--ink-soft)" }}>{doneCount.toLocaleString()}</span>
+                </div>
+                {/* total income (all statuses) */}
+                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2, borderRight: "1px solid var(--line)" }}>
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>ยอดรวมค่าบริการ</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "var(--primary-deep)" }}>
+                    {totalIncome.toLocaleString('th-TH')}
+                    <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 3 }}>฿</span>
+                  </span>
+                </div>
+                {/* done income */}
+                <div style={{ padding: "10px 18px", display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" }}>รายได้จริง (เสร็จสิ้น)</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: "#16a34a" }}>
+                    {doneIncome.toLocaleString('th-TH')}
+                    <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 3 }}>฿</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </>
   );
@@ -594,14 +790,14 @@ function CustomersPage({ appts, therapistsData, operationItems,
 
 // ── Services registry page (HOSxP health_med_operation_item) ──────────────────
 
-const SVC_PAGE_SIZE = 20;
-
 function ServicesPage({ operationItems, operationStatus, operationErrMsg,
   userInfo, therapistStatusText, onDisconnect, onReload }) {
 
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState(null);
   const [page,     setPage]     = useState(1);
+  const contentRef = useRef(null);
+  const pageSize   = useAutoPageSize(contentRef, 52);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -615,14 +811,14 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
   // reset page when search changes
   useEffect(() => { setPage(1); }, [search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / SVC_PAGE_SIZE));
-  const pageItems  = filtered.slice((page - 1) * SVC_PAGE_SIZE, page * SVC_PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageItems  = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <>
       <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
         <div>
-          <div className="page-title">ทะเบียนบริการ</div>
+          <div className="page-title">ทะเบียนรายการหัตถการแพทย์แผนไทย</div>
           <div className="page-sub">รายการหัตถการจาก HOSxP · health_med_operation_item</div>
         </div>
         <button className="btn-primary" onClick={onReload}
@@ -631,7 +827,7 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
         </button>
       </TopBar>
 
-      <div className="svc-content">
+      <div ref={contentRef} className="svc-content">
         {operationStatus === "loading" && (
           <div className="empty" style={{ flex: 1 }}>
             <Icon name="clock" size={36} /><div>กำลังโหลดข้อมูลจาก HOSxP…</div>
@@ -666,19 +862,19 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-                แสดง {filtered.length === 0 ? 0 : (page - 1) * SVC_PAGE_SIZE + 1}–{Math.min(page * SVC_PAGE_SIZE, filtered.length)} จากทั้งหมด {filtered.length} รายการ
+                แสดง {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} จากทั้งหมด {filtered.length} รายการ
                 {filtered.length !== operationItems.length && ` (กรองจาก ${operationItems.length})`}
               </div>
               {totalPages > 1 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                  <button className="btn-ghost" style={{ padding: "5px 14px", fontSize: 13, whiteSpace: "nowrap" }}
                     disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                     <Icon name="chevL" size={14} /> ก่อนหน้า
                   </button>
-                  <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 80, textAlign: "center" }}>
+                  <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 80, textAlign: "center", whiteSpace: "nowrap" }}>
                     หน้า {page} / {totalPages}
                   </span>
-                  <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                  <button className="btn-ghost" style={{ padding: "5px 14px", fontSize: 13, whiteSpace: "nowrap" }}
                     disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                     ถัดไป <Icon name="chevR" size={14} />
                   </button>
@@ -698,7 +894,7 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
               </div>
               {pageItems.map((it, i) => {
                 const active = it.isActive !== false;
-                const globalIndex = (page - 1) * SVC_PAGE_SIZE + i + 1;
+                const globalIndex = (page - 1) * pageSize + i + 1;
                 return (
                   <div key={it.id} className="reg-row" onClick={() => setSelected(it)}>
                     <div className="reg-cell reg-num">{globalIndex}</div>
@@ -739,44 +935,6 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
               )}
             </div>
 
-            {/* Bottom pagination */}
-            {totalPages > 1 && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, paddingBottom: 8, flexWrap: "wrap" }}>
-                <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 13 }}
-                  disabled={page <= 1} onClick={() => setPage(1)} title="หน้าแรก">
-                  «
-                </button>
-                <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
-                  disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-                  <Icon name="chevL" size={14} /> ก่อนหน้า
-                </button>
-                {(() => {
-                  const pages = [];
-                  const delta = 2;
-                  const left  = Math.max(1, page - delta);
-                  const right = Math.min(totalPages, page + delta);
-                  if (left > 1) { pages.push(1); if (left > 2) pages.push("…"); }
-                  for (let pg = left; pg <= right; pg++) pages.push(pg);
-                  if (right < totalPages) { if (right < totalPages - 1) pages.push("…"); pages.push(totalPages); }
-                  return pages.map((pg, idx) =>
-                    pg === "…"
-                      ? <span key={"dot"+idx} style={{ padding: "0 4px", color: "var(--ink-faint)" }}>…</span>
-                      : <button key={pg}
-                          className={pg === page ? "btn-primary" : "btn-ghost"}
-                          style={{ padding: "5px 10px", fontSize: 13, minWidth: 36 }}
-                          onClick={() => setPage(pg)}>{pg}</button>
-                  );
-                })()}
-                <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
-                  disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
-                  ถัดไป <Icon name="chevR" size={14} />
-                </button>
-                <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 13 }}
-                  disabled={page >= totalPages} onClick={() => setPage(totalPages)} title="หน้าสุดท้าย">
-                  »
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -892,6 +1050,9 @@ function TherapistPage({ therapistsData, therapistStatus, errMsg, apiUrl, rawSes
   const [showRaw,   setShowRaw]   = useState(false);
   const [manualUrl, setManualUrl] = useState(apiUrl || "");
   const [manualKey, setManualKey] = useState("");
+  const [therPage,  setTherPage]  = useState(1);
+  const contentRef = useRef(null);
+  const pageSize   = useAutoPageSize(contentRef, 62);
 
   const rawUi = rawSession && rawSession.result && rawSession.result.user_info;
   const rawKv = rawSession && rawSession.result && rawSession.result.key_value;
@@ -912,11 +1073,15 @@ function TherapistPage({ therapistsData, therapistStatus, errMsg, apiUrl, rawSes
     });
   }, [therapistsData, search]);
 
+  useEffect(() => { setTherPage(1); }, [search]);
+  const therTotalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const therPageRows   = filtered.slice((therPage - 1) * pageSize, therPage * pageSize);
+
   return (
     <>
       <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
         <div>
-          <div className="page-title">ทะเบียนหมอนวด</div>
+          <div className="page-title">ทะเบียนผู้ให้บริการแพทย์แผนไทย</div>
           <div className="page-sub">ผู้ให้บริการจาก HOSxP · health_med_provider</div>
         </div>
         <button className="btn-ghost" onClick={onTest}
@@ -929,7 +1094,7 @@ function TherapistPage({ therapistsData, therapistStatus, errMsg, apiUrl, rawSes
         </button>
       </TopBar>
 
-      <div className="svc-content">
+      <div ref={contentRef} className="svc-content">
         {/* แสดง API URL เฉพาะเมื่อหาไม่พบ (เพื่อ debug) */}
         {!apiUrl && (
           <div className="debug-strip">
@@ -1004,9 +1169,26 @@ function TherapistPage({ therapistsData, therapistStatus, errMsg, apiUrl, rawSes
                 style={{ width: "100%" }} />
             </div>
 
-            {/* Count */}
-            <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-              แสดง {filtered.length} รายการ จากทั้งหมด {therapistsData.length} คน
+            {/* Count + pagination */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
+                แสดง {filtered.length === 0 ? 0 : (therPage-1)*pageSize+1}–{Math.min(therPage*pageSize, filtered.length)} จาก {therapistsData.length} คน
+              </div>
+              {therTotalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button className="btn-ghost" style={{ padding: "4px 12px", fontSize: 13, whiteSpace: "nowrap" }}
+                    disabled={therPage <= 1} onClick={() => setTherPage(p => p-1)}>
+                    <Icon name="chevL" size={13} /> ก่อนหน้า
+                  </button>
+                  <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 80, textAlign: "center" }}>
+                    หน้า {therPage} / {therTotalPages}
+                  </span>
+                  <button className="btn-ghost" style={{ padding: "4px 12px", fontSize: 13, whiteSpace: "nowrap" }}
+                    disabled={therPage >= therTotalPages} onClick={() => setTherPage(p => p+1)}>
+                    ถัดไป <Icon name="chevR" size={13} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Table */}
@@ -1018,9 +1200,9 @@ function TherapistPage({ therapistsData, therapistStatus, errMsg, apiUrl, rawSes
                 <div className="reg-cell reg-spec">ประเภทการให้บริการ</div>
                 <div className="reg-cell reg-action"></div>
               </div>
-              {filtered.map((t, i) => (
+              {therPageRows.map((t, i) => (
                 <div key={t.id} className="reg-row" onClick={() => setSelected(t)}>
-                  <div className="reg-cell reg-num">{i + 1}</div>
+                  <div className="reg-cell reg-num">{(therPage-1)*pageSize + i + 1}</div>
                   <div className="reg-cell reg-name">
                     <Avatar name={t.name} color={t.color} size={36} />
                     <div style={{ minWidth: 0 }}>
@@ -1081,6 +1263,525 @@ function Stat({ icon, val, lab, ink, bg }) {
   );
 }
 
+// ── Report Page ──────────────────────────────────────────────────────────────
+
+function ReportPage({ appts, therapistsData, activeServices, userInfo, therapistStatusText, onDisconnect }) {
+  const [tab, setTab] = useState("live");
+  const [nowMin, setNowMin] = useState(() => { const d = new Date(); return d.getHours()*60+d.getMinutes(); });
+  const [dailyMode, setDailyMode] = useState("count");
+  const [svcMode, setSvcMode] = useState("income");
+
+  useEffect(() => {
+    const id = setInterval(() => { const d = new Date(); setNowMin(d.getHours()*60+d.getMinutes()); }, 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Today's data ────────────────────────────────────────────────────────────
+  const todayStr = dayKey(new Date());
+  const todayList = appts[todayStr] || [];
+  const todayActive = todayList.filter(a => a.status !== "cancelled");
+  const todayWaiting  = todayActive.filter(a => ["booked","confirmed","arrived"].includes(a.status)).length;
+  const todayService  = todayActive.filter(a => a.status === "service").length;
+  const todayDone     = todayActive.filter(a => a.status === "done").length;
+  const todayIncome   = todayActive.filter(a => a.status === "done").reduce((s,a) => s+(svc(a.serviceId)?.price||0), 0);
+  const dayPct        = Math.max(0, Math.min(100, ((nowMin-OPEN_MIN)/(CLOSE_MIN-OPEN_MIN))*100));
+  const upcomingQueue = todayActive.filter(a => !["done","cancelled"].includes(a.status)).sort((a,b)=>a.start-b.start).slice(0,8);
+
+  // ── All stored appointments for historical stats ─────────────────────────────
+  const allEntries = Object.entries(appts);
+  const allFlat    = allEntries.flatMap(([k,list]) => (list||[]).map(a => ({...a,_day:k})));
+  const allActive  = allFlat.filter(a => a.status !== "cancelled");
+  const allTotal   = allFlat; // includes cancelled
+
+  // ── 14-day daily chart ───────────────────────────────────────────────────────
+  const last14 = Array.from({length:14}, (_,i) => { const d=new Date(); d.setDate(d.getDate()-(13-i)); return dayKey(d); });
+  const dailyData = last14.map(k => {
+    const day  = (appts[k]||[]).filter(a => a.status !== "cancelled");
+    const done = day.filter(a => a.status === "done");
+    return { key:k, label:`${k.slice(8)}/${k.slice(5,7)}`, count:day.length, income:done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0) };
+  });
+  const dailyMax = Math.max(1, ...dailyData.map(d => dailyMode==="count" ? d.count : d.income));
+
+  // ── Service breakdown ────────────────────────────────────────────────────────
+  const svcMap = {};
+  allActive.forEach(a => {
+    const sv = svc(a.serviceId)||{name:a.serviceId||"ไม่ระบุ",price:0};
+    if (!svcMap[a.serviceId]) svcMap[a.serviceId] = {name:sv.name,count:0,income:0};
+    svcMap[a.serviceId].count++;
+    if (a.status==="done") svcMap[a.serviceId].income += sv.price;
+  });
+  const svcRows = Object.values(svcMap).sort((a,b)=>b.count-a.count).slice(0,8);
+  const svcMax  = Math.max(1, ...svcRows.map(s => svcMode==="income" ? s.income : s.count));
+
+  // ── Therapist workload (live + historical) ───────────────────────────────────
+  const therRows = therapistsData.map(t => {
+    const all      = allActive.filter(a => a.therapistId === t.id);
+    const todayT   = todayActive.filter(a => a.therapistId === t.id);
+    const done     = all.filter(a => a.status==="done");
+    const totalMins = all.reduce((s,a)=>s+(svc(a.serviceId)?.dur||60),0);
+    const income   = done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0);
+    const availMins = (CLOSE_MIN-OPEN_MIN)*(allEntries.length||1);
+    const utilPct  = availMins>0 ? Math.min(100, Math.round(totalMins/availMins*100)) : 0;
+    const current  = todayT.find(a => a.status==="service" && a.start<=nowMin && (a.start+(svc(a.serviceId)?.dur||60))>nowMin);
+    const nextAppt = todayT.filter(a => ["booked","confirmed","arrived"].includes(a.status)&&a.start>nowMin).sort((a,b)=>a.start-b.start)[0];
+    return {...t, count:all.length, todayCount:todayT.length, totalMins, income, utilPct, current, nextAppt};
+  });
+  const todayMaxQ = Math.max(1, ...therRows.map(r=>r.todayCount));
+
+  // ── 6-month chart ────────────────────────────────────────────────────────────
+  const now6 = new Date();
+  const months6 = Array.from({length:6}, (_,i) => {
+    const d = new Date(now6.getFullYear(), now6.getMonth()-(5-i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  });
+  const thaiMo = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  const monthData = months6.map(m => {
+    const mo   = parseInt(m.slice(5))-1;
+    const days = allActive.filter(a => (a._day||"").startsWith(m));
+    const done = days.filter(a => a.status==="done");
+    return { key:m, label:thaiMo[mo], count:days.length, income:done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0) };
+  });
+  const monthMax = Math.max(1, ...monthData.map(m=>m.count));
+
+  // ── Popular time slots ───────────────────────────────────────────────────────
+  const timeMap = {};
+  allActive.forEach(a => { const sl=Math.floor(a.start/30)*30; timeMap[sl]=(timeMap[sl]||0)+1; });
+  const timeSlots = Object.entries(timeMap).map(([m,c])=>({m:+m,c,label:fmtMin(+m)})).sort((a,b)=>a.m-b.m);
+  const timeMax = Math.max(1, ...timeSlots.map(t=>t.c));
+
+  // ── Quality metrics ──────────────────────────────────────────────────────────
+  const cancelledCnt = allTotal.filter(a=>a.status==="cancelled").length;
+  const doneTotalCnt = allTotal.filter(a=>a.status==="done").length;
+  const cancelRate = allTotal.length>0 ? Math.round(cancelledCnt/allTotal.length*100) : 0;
+  const doneRate   = allTotal.length>0 ? Math.round(doneTotalCnt/allTotal.length*100) : 0;
+
+  // ── Regular customers ────────────────────────────────────────────────────────
+  const custMap = {};
+  allActive.forEach(a => {
+    const nm = a.customer||(a.hn?`HN ${a.hn}`:null)||"ไม่ทราบ";
+    if (!custMap[nm]) custMap[nm]={name:nm,count:0,income:0};
+    custMap[nm].count++;
+    if (a.status==="done") custMap[nm].income+=svc(a.serviceId)?.price||0;
+  });
+  const regularCusts = Object.values(custMap).filter(c=>c.count>=2).sort((a,b)=>b.count-a.count).slice(0,8);
+
+  // ── Reusable micro-components ────────────────────────────────────────────────
+  const BarH = ({pct,color="var(--primary)",h=8}) => (
+    <div style={{flex:1,height:h,background:"var(--surface-2)",borderRadius:4,overflow:"hidden"}}>
+      <div style={{width:`${Math.max(0,pct)}%`,height:"100%",background:color,borderRadius:4,transition:"width .4s"}}/>
+    </div>
+  );
+  const Card = ({title,action,children}) => (
+    <div style={{background:"var(--surface-1)",border:"1px solid var(--line)",borderRadius:14,padding:"18px 20px"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontSize:14,fontWeight:700,color:"var(--ink)"}}>{title}</div>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+  const ToggleSeg = ({value,onChange,options}) => (
+    <div className="seg" style={{zoom:.85,transformOrigin:"right"}}>
+      {options.map(o => <button key={o.v} className={value===o.v?"on":""} onClick={()=>onChange(o.v)}>{o.l}</button>)}
+    </div>
+  );
+  const Empty = ({msg="ยังไม่มีข้อมูล"}) => (
+    <div style={{textAlign:"center",padding:"20px 0",color:"var(--ink-faint)",fontSize:13}}>{msg}</div>
+  );
+
+  return (
+    <>
+      <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
+        <div>
+          <div className="page-title">รายงาน</div>
+          <div className="page-sub">ติดตามการให้บริการและสถิติ</div>
+        </div>
+        <div className="seg" style={{marginLeft:16}}>
+          <button className={tab==="live"?"on":""} onClick={()=>setTab("live")}>🟢 ติดตามการให้บริการ</button>
+          <button className={tab==="stats"?"on":""} onClick={()=>setTab("stats")}>📊 รายงานและสถิติ</button>
+        </div>
+      </TopBar>
+
+      <div className="svc-content">
+
+        {/* ══════ TAB 1: LIVE ══════ */}
+        {tab === "live" && (<>
+
+          {/* Stat cards */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12}}>
+            {[
+              {icon:"users", val:todayActive.length,  lab:"ผู้รับบริการวันนี้", ink:"var(--st-booked-ink)",  bg:"var(--st-booked-bg)"},
+              {icon:"clock", val:todayWaiting,         lab:"คิวที่รอดำเนินการ", ink:"var(--st-arrived-ink)", bg:"var(--st-arrived-bg)"},
+              {icon:"spark", val:todayService,         lab:"กำลังให้บริการ",    ink:"var(--st-service-ink)", bg:"var(--st-service-bg)"},
+              {icon:"check", val:todayDone,            lab:"ให้บริการแล้ว",     ink:"var(--st-done-ink)",    bg:"var(--st-done-bg)"},
+            ].map(s => <Stat key={s.lab} icon={s.icon} val={s.val} lab={s.lab} ink={s.ink} bg={s.bg}/>)}
+          </div>
+
+          {/* Day progress bar */}
+          <Card title={`ความคืบหน้าของวัน · ${fmtMin(OPEN_MIN)} – ${fmtMin(CLOSE_MIN)}`}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:12,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{fmtMin(OPEN_MIN)}</span>
+              <div style={{flex:1,height:14,background:"var(--surface-2)",borderRadius:8,position:"relative",overflow:"visible"}}>
+                <div style={{width:`${dayPct}%`,height:"100%",background:"linear-gradient(90deg,var(--primary-tint),var(--primary))",borderRadius:8,transition:"width .5s"}}/>
+                <div style={{position:"absolute",top:"50%",left:`${dayPct}%`,transform:"translate(-50%,-50%)",width:22,height:22,borderRadius:"50%",background:"var(--primary)",border:"3px solid var(--surface-0)",boxShadow:"0 2px 8px rgba(0,0,0,.2)",zIndex:1}}/>
+              </div>
+              <span style={{fontSize:12,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{fmtMin(CLOSE_MIN)}</span>
+              <span style={{fontSize:13,fontWeight:700,color:"var(--primary)",whiteSpace:"nowrap",minWidth:64,textAlign:"right"}}>{fmtMin(nowMin)} · {Math.round(dayPct)}%</span>
+            </div>
+          </Card>
+
+          {/* Therapist real-time workload */}
+          <Card title="ภาระงานผู้ให้บริการแพทย์แผนไทย">
+            {therapistsData.length === 0 ? <Empty msg="ยังไม่มีข้อมูลผู้ให้บริการ"/> : (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:10}}>
+                {therRows.map(t => {
+                  const isCurrent = !!t.current;
+                  const hasNext   = !!t.nextAppt && !isCurrent;
+                  const stLabel   = isCurrent ? "● กำลังนวด" : hasNext ? `คิวถัดไป ${fmtMin(t.nextAppt.start)}` : "ว่าง";
+                  const stInk     = isCurrent ? "var(--st-service-ink)" : hasNext ? "var(--st-booked-ink)" : "var(--ink-faint)";
+                  const stBg      = isCurrent ? "var(--st-service-bg)" : hasNext ? "var(--st-booked-bg)" : "var(--surface-2)";
+                  return (
+                    <div key={t.id} style={{background:"var(--surface-2)",borderRadius:12,padding:"12px 14px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                        <Avatar name={t.name} color={t.color} size={30}/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.fullname||t.name}</div>
+                          {t.spec && <div style={{fontSize:11,color:"var(--ink-faint)"}}>{t.spec}</div>}
+                        </div>
+                        <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:stBg,color:stInk,fontWeight:600,whiteSpace:"nowrap",border:`1px solid ${stInk}22`}}>{stLabel}</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <BarH pct={todayMaxQ>0?(t.todayCount/todayMaxQ)*100:0} h={6} color={isCurrent?"var(--st-service-ink)":"var(--primary)"}/>
+                        <span style={{fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{t.todayCount} คิว</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          {/* Upcoming queue */}
+          <Card title="คิวถัดไปที่รอดำเนินการ">
+            {upcomingQueue.length===0 ? <Empty msg="ไม่มีคิวที่รอดำเนินการ"/> : (
+              <div className="reg-table">
+                <div className="reg-head">
+                  <div className="reg-cell" style={{width:70}}>เวลา</div>
+                  <div className="reg-cell" style={{flex:1}}>ชื่อ</div>
+                  <div className="reg-cell" style={{flex:1,display:"flex"}}>บริการ</div>
+                  <div className="reg-cell" style={{width:130}}>หมอนวด</div>
+                  <div className="reg-cell" style={{width:90}}>สถานะ</div>
+                </div>
+                <div className="reg-body">
+                  {upcomingQueue.map(a => {
+                    // ค้นหาบริการจาก activeServices prop ก่อน (ครอบคลุมทั้ง HOSxP และ mock)
+                    const svObj = activeServices.find(s => s.id === a.serviceId)
+                               || svc(a.serviceId)
+                               || {};
+                    const svName = svObj.name || a.serviceId || "—";
+                    // ค้นหาหมอนวดจาก therapistsData prop
+                    const thObj  = therapistsData.find(t => t.id === a.therapistId) || {};
+                    const thName = thObj.fullname || thObj.name || a.therapistId || "—";
+                    const st = STATUSES[a.status] || STATUSES.booked;
+                    return (
+                      <div key={a.id} className="reg-row">
+                        <div className="reg-cell" style={{width:70,flex:"none",fontFamily:"monospace",fontWeight:700,color:"var(--primary)"}}>{fmtMin(a.start)}</div>
+                        <div className="reg-cell" style={{flex:1,minWidth:0,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.customer||a.hn||"—"}</div>
+                        <div className="reg-cell" style={{flex:1,minWidth:0,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{svName}</div>
+                        <div className="reg-cell" style={{width:130,flex:"none",fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{thName}</div>
+                        <div className="reg-cell" style={{width:90,flex:"none"}}>
+                          <span style={{padding:"2px 8px",borderRadius:20,background:st.bg,color:st.ink,fontSize:11,fontWeight:600}}>{st.label}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+
+        </>)}
+
+        {/* ══════ TAB 2: STATISTICS ══════ */}
+        {tab === "stats" && (<>
+
+          {/* Daily bar chart */}
+          <Card
+            title="รายงานผู้รับบริการรายวัน (14 วันล่าสุด)"
+            action={<ToggleSeg value={dailyMode} onChange={setDailyMode} options={[{v:"count",l:"ผู้รับบริการ"},{v:"income",l:"รายได้"}]}/>}
+          >
+            {(() => {
+              const BAR_H   = 160;
+              const TICK_H  = 26;
+              const Y_W     = 38;
+              const totalW  = 0; // ใช้ flex
+              const gridPcts = [100, 75, 50, 25];
+              const fmtY = v => dailyMode === "income"
+                ? (v >= 1000 ? Math.round(v/1000)+"k" : v)
+                : v;
+              return (
+                <div style={{marginTop:4}}>
+                  {/* Chart wrapper: Y-axis + bars */}
+                  <div style={{display:"flex",gap:0}}>
+                    {/* Y-axis */}
+                    <div style={{width:Y_W,flexShrink:0,position:"relative",height:BAR_H}}>
+                      {gridPcts.map(p => (
+                        <div key={p} style={{
+                          position:"absolute",
+                          bottom:`${p}%`,
+                          right:6,
+                          fontSize:10,
+                          color:"var(--ink-faint)",
+                          lineHeight:1,
+                          transform:"translateY(50%)",
+                        }}>
+                          {fmtY(Math.round(dailyMax*p/100))}
+                        </div>
+                      ))}
+                      <div style={{position:"absolute",bottom:0,right:6,fontSize:10,color:"var(--ink-faint)",lineHeight:1}}>0</div>
+                    </div>
+
+                    {/* Plot area */}
+                    <div style={{flex:1,position:"relative"}}>
+                      {/* Grid lines */}
+                      <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
+                        {[...gridPcts,0].map(p => (
+                          <div key={p} style={{
+                            position:"absolute",
+                            bottom:`${p}%`,
+                            left:0,right:0,
+                            borderTop:`1px ${p===0?"solid":"dashed"} var(--line)`,
+                          }}/>
+                        ))}
+                      </div>
+
+                      {/* Bars */}
+                      <div style={{display:"flex",alignItems:"flex-end",height:BAR_H,gap:5,position:"relative",zIndex:1,paddingBottom:1}}>
+                        {dailyData.map(d => {
+                          const val     = dailyMode==="count" ? d.count : d.income;
+                          const pct     = dailyMax>0 ? val/dailyMax : 0;
+                          const barH    = Math.max(val>0?3:0, Math.round(pct*(BAR_H-4)));
+                          const isToday = d.key===todayStr;
+                          const barBg   = isToday
+                            ? "oklch(0.44 0.09 158)"
+                            : "oklch(0.66 0.10 158)";
+                          const tipText = dailyMode==="income"
+                            ? `${d.income.toLocaleString()} ฿`
+                            : `${d.count} คน`;
+                          return (
+                            <div key={d.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+                              {/* Value label above bar */}
+                              <span style={{
+                                fontSize:10,
+                                fontWeight:isToday?700:500,
+                                color:isToday?"oklch(0.38 0.09 158)":"var(--ink)",
+                                lineHeight:1,
+                                marginBottom:3,
+                                visibility:val>0?"visible":"hidden",
+                              }}>
+                                {dailyMode==="income" && val>=1000 ? `${Math.round(val/1000)}k` : val||""}
+                              </span>
+                              {/* Bar */}
+                              <div
+                                title={tipText}
+                                style={{
+                                  width:"100%",
+                                  height:`${barH}px`,
+                                  background:barBg,
+                                  borderRadius:"4px 4px 0 0",
+                                  transition:"height .35s ease",
+                                  boxShadow:isToday?"0 -2px 6px oklch(0.44 0.09 158 / .3)":"none",
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* X-axis labels (aligned under bars, offset by Y_W) */}
+                  <div style={{display:"flex",paddingLeft:Y_W,gap:5,marginTop:4,height:TICK_H,alignItems:"flex-start"}}>
+                    {dailyData.map(d => {
+                      const isToday = d.key===todayStr;
+                      return (
+                        <div key={d.key} style={{flex:1,textAlign:"center"}}>
+                          {isToday && (
+                            <div style={{
+                              width:6,height:6,borderRadius:"50%",
+                              background:"oklch(0.44 0.09 158)",
+                              margin:"0 auto 2px",
+                            }}/>
+                          )}
+                          <div style={{
+                            fontSize:10,
+                            fontWeight:isToday?700:400,
+                            color:isToday?"oklch(0.38 0.09 158)":"var(--ink-faint)",
+                            lineHeight:1.2,
+                          }}>
+                            {d.label}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Summary row */}
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--ink-faint)",marginTop:8,paddingTop:10,borderTop:"1px solid var(--line)"}}>
+                    <span>รวม: <strong style={{color:"var(--ink)"}}>
+                      {dailyMode==="count"
+                        ? `${dailyData.reduce((s,d)=>s+d.count,0).toLocaleString()} ครั้ง`
+                        : `${dailyData.reduce((s,d)=>s+d.income,0).toLocaleString()} ฿`}
+                    </strong></span>
+                    <span>เฉลี่ย/วัน: <strong style={{color:"var(--ink)"}}>
+                      {dailyMode==="count"
+                        ? `${(dailyData.reduce((s,d)=>s+d.count,0)/14).toFixed(1)} ครั้ง`
+                        : `${Math.round(dailyData.reduce((s,d)=>s+d.income,0)/14).toLocaleString()} ฿`}
+                    </strong></span>
+                  </div>
+                </div>
+              );
+            })()}
+          </Card>
+
+          {/* 2-col: Service breakdown + 6-month */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))",gap:16}}>
+
+            <Card title="การให้บริการแยกตามประเภทการรักษา" action={<ToggleSeg value={svcMode} onChange={setSvcMode} options={[{v:"income",l:"รายได้"},{v:"count",l:"จำนวนครั้ง"}]}/>}>
+              {svcRows.length===0 ? <Empty/> : svcRows.map(s => {
+                const val = svcMode==="income" ? s.income : s.count;
+                return (
+                  <div key={s.name} style={{marginBottom:9}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"65%",fontWeight:500}}>{s.name}</span>
+                      <span style={{color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{svcMode==="income"?`${s.income.toLocaleString()} ฿`:`${s.count} ครั้ง`}</span>
+                    </div>
+                    <BarH pct={svcMax>0?(val/svcMax)*100:0}/>
+                  </div>
+                );
+              })}
+            </Card>
+
+            <Card title="สถิติการใช้บริการย้อนหลัง 6 เดือน">
+              <div style={{display:"flex",alignItems:"flex-end",gap:8,height:100}}>
+                {monthData.map(m => {
+                  const pct = monthMax>0 ? m.count/monthMax : 0;
+                  return (
+                    <div key={m.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                      {m.count>0 && <span style={{fontSize:11,color:"var(--primary)",fontWeight:700}}>{m.count}</span>}
+                      <div style={{width:"100%",flex:1,display:"flex",alignItems:"flex-end"}}>
+                        <div style={{width:"100%",height:`${Math.max(2,pct*72)}px`,background:"var(--primary)",borderRadius:"4px 4px 0 0",opacity:.85}}/>
+                      </div>
+                      <span style={{fontSize:11,color:"var(--ink-faint)"}}>{m.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{marginTop:8,fontSize:11,color:"var(--ink-faint)",paddingTop:8,borderTop:"1px solid var(--line)"}}>
+                รวม 6 เดือน · {monthData.reduce((s,m)=>s+m.count,0)} ครั้ง · รายได้ {monthData.reduce((s,m)=>s+m.income,0).toLocaleString()} ฿
+              </div>
+            </Card>
+          </div>
+
+          {/* Therapist workload table */}
+          <Card title="รายงานภาระงานผู้ให้บริการแพทย์แผนไทย">
+            {therRows.length===0 ? <Empty msg="ยังไม่มีข้อมูลผู้ให้บริการ"/> : (
+              <div className="reg-table">
+                <div className="reg-head">
+                  <div className="reg-cell" style={{flex:1}}>หมอนวด</div>
+                  <div className="reg-cell" style={{width:72,textAlign:"right"}}>คิวรวม</div>
+                  <div className="reg-cell" style={{width:80,textAlign:"right"}}>ชั่วโมง</div>
+                  <div className="reg-cell" style={{width:110,textAlign:"right"}}>รายได้</div>
+                  <div className="reg-cell" style={{width:130}}>การใช้เวลา</div>
+                </div>
+                <div className="reg-body">
+                  {therRows.map(t => (
+                    <div key={t.id} className="reg-row">
+                      <div className="reg-cell" style={{flex:1,display:"flex",alignItems:"center",gap:8}}>
+                        <Avatar name={t.name} color={t.color} size={28}/>
+                        <span style={{fontWeight:500}}>{t.fullname||t.name}</span>
+                      </div>
+                      <div className="reg-cell" style={{width:72,textAlign:"right",fontWeight:700,color:"var(--primary)"}}>{t.count}</div>
+                      <div className="reg-cell" style={{width:80,textAlign:"right"}}>{(t.totalMins/60).toFixed(1)}</div>
+                      <div className="reg-cell" style={{width:110,textAlign:"right"}}>{t.income.toLocaleString()} ฿</div>
+                      <div className="reg-cell" style={{width:130,display:"flex",alignItems:"center",gap:6}}>
+                        <BarH pct={t.utilPct} h={6}/><span style={{fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{t.utilPct}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* 2-col: Popular times + Appointment quality */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:16}}>
+
+            <Card title="ช่วงเวลายอดนิยม">
+              {timeSlots.length===0 ? <Empty/> : timeSlots.map(ts => (
+                <div key={ts.m} style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
+                    <span style={{fontWeight:500}}>{ts.label}</span>
+                    <span style={{color:"var(--ink-faint)"}}>{ts.c} คิว</span>
+                  </div>
+                  <BarH pct={(ts.c/timeMax)*100}/>
+                </div>
+              ))}
+            </Card>
+
+            <Card title="คุณภาพการนัด">
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
+                    <span>อัตราให้บริการสำเร็จ</span>
+                    <span style={{fontWeight:700,color:"var(--primary)"}}>{doneRate}%</span>
+                  </div>
+                  <BarH pct={doneRate}/>
+                </div>
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
+                    <span>อัตรายกเลิกนัด</span>
+                    <span style={{fontWeight:700,color:"#ef4444"}}>{cancelRate}%</span>
+                  </div>
+                  <BarH pct={cancelRate} color="#ef4444"/>
+                </div>
+                <div style={{fontSize:12,color:"var(--ink-faint)",paddingTop:10,borderTop:"1px solid var(--line)"}}>
+                  นัดทั้งหมด {allTotal.length} รายการ · สำเร็จ {doneTotalCnt} · ยกเลิก {cancelledCnt}
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Regular customers */}
+          <Card title="ลูกค้าประจำ — เข้าใช้บริการ 2 ครั้งขึ้นไป">
+            {regularCusts.length===0 ? <Empty msg="ยังไม่มีลูกค้าที่เข้ามาซ้ำ"/> : (
+              <div className="reg-table">
+                <div className="reg-head">
+                  <div className="reg-cell" style={{width:36}}>#</div>
+                  <div className="reg-cell" style={{flex:1}}>ชื่อ-สกุล</div>
+                  <div className="reg-cell" style={{width:90,textAlign:"right"}}>จำนวนครั้ง</div>
+                  <div className="reg-cell" style={{width:110,textAlign:"right"}}>ยอดรวม</div>
+                </div>
+                <div className="reg-body">
+                  {regularCusts.map((c,i) => (
+                    <div key={c.name} className="reg-row">
+                      <div className="reg-cell" style={{width:36,color:"var(--ink-faint)",fontSize:12}}>{i+1}</div>
+                      <div className="reg-cell" style={{flex:1,fontWeight:500}}>{c.name}</div>
+                      <div className="reg-cell" style={{width:90,textAlign:"right",fontWeight:700,color:"var(--primary)"}}>{c.count} ครั้ง</div>
+                      <div className="reg-cell" style={{width:110,textAlign:"right",color:"var(--ink-faint)"}}>{c.income.toLocaleString()} ฿</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+
+        </>)}
+      </div>
+    </>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 function App() {
@@ -1094,8 +1795,9 @@ function App() {
   const [filter, setFilter]  = useState("all");
   const [query, setQuery]    = useState("");
   const [collapsed, setCollapsed] = useState(false);
-  const [booking,  setBooking]  = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [booking,    setBooking]    = useState(null);
+  const [selected,   setSelected]   = useState(null);
+  const [printAppt,  setPrintAppt]  = useState(null);
   const [toast, setToast]       = useState("");
   const [hosxpStats, setHosxpStats] = useState(null);
   const [activePage, setActivePage] = useState("sched");
@@ -1506,8 +2208,10 @@ function App() {
       showToast("บันทึกการแก้ไขเรียบร้อยแล้ว");
     } else {
       const id = `a${key}_new_${Date.now()}`;
-      setAppts(p => ({ ...p, [key]: [...(p[key] || []), { ...data, id }] }));
+      const saved = { ...data, id };
+      setAppts(p => ({ ...p, [key]: [...(p[key] || []), saved] }));
       showToast("จองนัดเรียบร้อยแล้ว");
+      setPrintAppt({ appt: saved, date, queueNo: (list.length + 1) });
     }
     setBooking(null);
   };
@@ -1528,6 +2232,18 @@ function App() {
         collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
 
       <div className="main">
+        {/* ── Report page ── */}
+        {activePage === "report" && (
+          <ReportPage
+            appts={appts}
+            therapistsData={therapistsData}
+            activeServices={activeServices}
+            userInfo={bms.userInfo}
+            therapistStatusText={therapistStatusText}
+            onDisconnect={doDisconnect}
+          />
+        )}
+
         {/* ── Services page (HOSxP registry) ── */}
         {activePage === "svc" && (
           <ServicesPage
@@ -1582,7 +2298,7 @@ function App() {
           <>
             <TopBar userInfo={bms.userInfo} therapistStatus={therapistStatusText} onDisconnect={doDisconnect}>
               <div>
-                <div className="page-title">ตารางนัดหมอนวด</div>
+                <div className="page-title">ตารางให้บริการแพทย์แผนไทย</div>
                 <div className="page-sub">จัดการคิวและนัดหมายประจำวัน</div>
               </div>
               <div className="search" style={{ marginLeft: 12 }}>
@@ -1660,10 +2376,23 @@ function App() {
       <DetailPanel
         open={!!selected} appt={selectedAppt}
         onClose={() => setSelected(null)}
-        onStatus={setApptStatus}
+        onSave={saveAppt}
         onCancel={cancelAppt}
+        therapists={therapistsData}
+        services={activeServices}
       />
       {/* ServiceForm: เก็บไว้เผื่อใช้เพิ่มบริการ local */}
+
+      {printAppt && (
+        <QueueTicketModal
+          appt={printAppt.appt}
+          services={activeServices}
+          therapists={therapistsData}
+          queueNo={printAppt.queueNo}
+          date={printAppt.date}
+          onClose={() => setPrintAppt(null)}
+        />
+      )}
 
       <div className={"toast" + (toast ? " show" : "")}>
         <Icon name="check" size={16} /> {toast}
