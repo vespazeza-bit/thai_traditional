@@ -917,43 +917,52 @@ function BedForm({ open, bed, onClose, onSave }) {
     active,
   });
 
-  return (
-    <Drawer open={open} onClose={onClose}
-      title={isEdit ? "แก้ไขเตียงบริการ" : "เพิ่มเตียงบริการ"}
-      foot={<>
-        <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
-        <button className="btn-fill" disabled={!valid} onClick={save}>
-          {isEdit ? "บันทึกการแก้ไข" : "เพิ่มเตียง"}
-        </button>
-      </>}
-    >
-      <div className="field">
-        <label>ชื่อเตียง / หมายเลขเตียง</label>
-        <input className="input" placeholder="เช่น เตียง 1, เตียง A, VIP 01" value={name}
-          onChange={e => setName(e.target.value)} autoFocus />
-      </div>
-      <div className="field">
-        <label>ห้อง / ตำแหน่ง</label>
-        <input className="input" placeholder="เช่น ห้องนวด 1, ชั้น 2" value={room}
-          onChange={e => setRoom(e.target.value)} />
-      </div>
-      <div className="field">
-        <label>หมายเหตุ</label>
-        <input className="input" placeholder="เช่น สำหรับผู้พิการ, มีอ่างน้ำ" value={note}
-          onChange={e => setNote(e.target.value)} />
-      </div>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-        borderTop:"1px solid var(--line-soft)", paddingTop:14 }}>
-        <div>
-          <div style={{ fontWeight:600, fontSize:14 }}>เปิดใช้งาน</div>
-          <div style={{ fontSize:12, color:"var(--ink-faint)", marginTop:2 }}>
-            {active ? "เตียงนี้พร้อมให้บริการ" : "เตียงนี้ถูกปิดชั่วคราว"}
-          </div>
+  if (!open) return null;
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card fade-up" style={{ maxWidth: 460, width: "100%" }}>
+        <div className="modal-head">
+          <div className="drawer-title">{isEdit ? "แก้ไขเตียงบริการ" : "เพิ่มเตียงบริการ"}</div>
+          <button className="icon-btn" onClick={onClose}><Icon name="close" /></button>
         </div>
-        <button type="button" className="twk-toggle" data-on={active ? "1" : "0"}
-          role="switch" onClick={() => setActive(v => !v)}><i /></button>
+        <div className="modal-body">
+          <div className="field">
+            <label>ชื่อเตียง / หมายเลขเตียง</label>
+            <input className="input" placeholder="เช่น เตียง 1, เตียง A, VIP 01" value={name}
+              onChange={e => setName(e.target.value)} autoFocus />
+          </div>
+          <div className="field">
+            <label>ห้อง / ตำแหน่ง</label>
+            <input className="input" placeholder="เช่น ห้องนวด 1, ชั้น 2" value={room}
+              onChange={e => setRoom(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>หมายเหตุ</label>
+            <input className="input" placeholder="เช่น สำหรับผู้พิการ, มีอ่างน้ำ" value={note}
+              onChange={e => setNote(e.target.value)} />
+          </div>
+          <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer",
+            padding:"12px 0", borderTop:"1px solid var(--line)" }}>
+            <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)}
+              style={{ width:17, height:17, accentColor:"var(--primary)", cursor:"pointer", flexShrink:0 }} />
+            <div>
+              <div style={{ fontWeight:600, fontSize:14 }}>Active — เตียงพร้อมให้บริการ</div>
+              <div style={{ fontSize:12, color:"var(--ink-faint)", marginTop:2 }}>
+                {active ? "เตียงนี้จะแสดงในระบบและพร้อมรับผู้รับบริการ"
+                        : "เตียงนี้ถูกปิด จะไม่แสดงในการจองนัด"}
+              </div>
+            </div>
+          </label>
+        </div>
+        <div className="modal-foot">
+          <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
+          <button className="btn-fill" disabled={!valid} onClick={save}>
+            {isEdit ? "บันทึกการแก้ไข" : "เพิ่มเตียง"}
+          </button>
+        </div>
       </div>
-    </Drawer>
+    </div>,
+    document.body
   );
 }
 
