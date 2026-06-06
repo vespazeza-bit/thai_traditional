@@ -18,32 +18,26 @@ function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedNam
     text += ` ${bedLabel}`;
   }
 
-  // fallback: Web Speech API (ใช้ถ้า Google TTS โหลดไม่ได้)
-  function useSpeechSynthesis() {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'th-TH'; utt.rate = 0.7; utt.pitch = 1.75; utt.volume = 1;
-    function pickVoice() {
-      const th = window.speechSynthesis.getVoices().filter(v => v.lang === 'th-TH' || v.lang === 'th');
-      const female = th.find(v => /thipsuda|kanya|female|woman|หญิง/i.test(v.name))
-        || th.find(v => !/pattara|niwat|male/i.test(v.name)) || th[0];
-      if (female) utt.voice = female;
-    }
-    if (window.speechSynthesis.getVoices().length > 0) { pickVoice(); window.speechSynthesis.speak(utt); }
-    else { window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; pickVoice(); window.speechSynthesis.speak(utt); }; }
+  // 1. ResponsiveVoice — เสียงหญิงภาษาไทยจาก library (ดีที่สุด)
+  if (window.responsiveVoice && window.responsiveVoice.voiceSupport()) {
+    window.responsiveVoice.cancel();
+    window.responsiveVoice.speak(text, "Thai Female", { rate: 0.85, volume: 1 });
+    return;
   }
 
-  // ใช้ Google Translate TTS (เสียงหญิงภาษาไทย)
-  try {
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=th&client=tw-ob`;
-    if (window._qAudio) { window._qAudio.pause(); window._qAudio.src = ""; }
-    window._qAudio = new Audio(url);
-    window._qAudio.playbackRate = 0.88; // ช้าลงเล็กน้อย
-    window._qAudio.play().catch(useSpeechSynthesis);
-  } catch (e) {
-    useSpeechSynthesis();
+  // 2. Web Speech API fallback (ถ้าไม่มี ResponsiveVoice)
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'th-TH'; utt.rate = 0.7; utt.pitch = 1.75; utt.volume = 1;
+  function pickVoice() {
+    const th = window.speechSynthesis.getVoices().filter(v => v.lang === 'th-TH' || v.lang === 'th');
+    const female = th.find(v => /thipsuda|kanya|female|woman|หญิง/i.test(v.name))
+      || th.find(v => !/pattara|niwat|male/i.test(v.name)) || th[0];
+    if (female) utt.voice = female;
   }
+  if (window.speechSynthesis.getVoices().length > 0) { pickVoice(); window.speechSynthesis.speak(utt); }
+  else { window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.onvoiceschanged = null; pickVoice(); window.speechSynthesis.speak(utt); }; }
 }
 
 function broadcastQueue(current, history) {
