@@ -185,8 +185,9 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
   const settingsItems = [
-    { id: "ther", icon: "user", label: "ผู้ให้บริการ" },
-    { id: "svc",  icon: "leaf", label: "บริการแพทย์แผนไทย" },
+    { id: "ther", icon: "user",  label: "ผู้ให้บริการ" },
+    { id: "svc",  icon: "leaf",  label: "บริการแพทย์แผนไทย" },
+    { id: "bed",  icon: "list",  label: "เตียงบริการ" },
   ];
   const inSettings = settingsItems.some(i => i.id === activePage);
   const [settingsOpen, setSettingsOpen] = useState(inSettings);
@@ -883,6 +884,167 @@ function CustomersPage({ appts, therapistsData, operationItems,
           );
         })()}
       </div>
+    </>
+  );
+}
+
+// ── Bed management ────────────────────────────────────────────────────────────
+
+function BedForm({ open, bed, onClose, onSave }) {
+  const isEdit = !!bed?.id;
+  const [name,   setName]   = useState("");
+  const [room,   setRoom]   = useState("");
+  const [note,   setNote]   = useState("");
+  const [active, setActive] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit) {
+      setName(bed.name || ""); setRoom(bed.room || "");
+      setNote(bed.note || ""); setActive(bed.active !== false);
+    } else {
+      setName(""); setRoom(""); setNote(""); setActive(true);
+    }
+  }, [open, isEdit, bed]);
+
+  const valid = name.trim().length > 0;
+  const save  = () => onSave({
+    ...(bed || {}),
+    id:     isEdit ? bed.id : `bed_${Date.now()}`,
+    name:   name.trim(),
+    room:   room.trim(),
+    note:   note.trim(),
+    active,
+  });
+
+  return (
+    <Drawer open={open} onClose={onClose}
+      title={isEdit ? "แก้ไขเตียงบริการ" : "เพิ่มเตียงบริการ"}
+      foot={<>
+        <button className="btn-ghost" onClick={onClose}>ยกเลิก</button>
+        <button className="btn-fill" disabled={!valid} onClick={save}>
+          {isEdit ? "บันทึกการแก้ไข" : "เพิ่มเตียง"}
+        </button>
+      </>}
+    >
+      <div className="field">
+        <label>ชื่อเตียง / หมายเลขเตียง</label>
+        <input className="input" placeholder="เช่น เตียง 1, เตียง A, VIP 01" value={name}
+          onChange={e => setName(e.target.value)} autoFocus />
+      </div>
+      <div className="field">
+        <label>ห้อง / ตำแหน่ง</label>
+        <input className="input" placeholder="เช่น ห้องนวด 1, ชั้น 2" value={room}
+          onChange={e => setRoom(e.target.value)} />
+      </div>
+      <div className="field">
+        <label>หมายเหตุ</label>
+        <input className="input" placeholder="เช่น สำหรับผู้พิการ, มีอ่างน้ำ" value={note}
+          onChange={e => setNote(e.target.value)} />
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+        borderTop:"1px solid var(--line-soft)", paddingTop:14 }}>
+        <div>
+          <div style={{ fontWeight:600, fontSize:14 }}>เปิดใช้งาน</div>
+          <div style={{ fontSize:12, color:"var(--ink-faint)", marginTop:2 }}>
+            {active ? "เตียงนี้พร้อมให้บริการ" : "เตียงนี้ถูกปิดชั่วคราว"}
+          </div>
+        </div>
+        <button type="button" className="twk-toggle" data-on={active ? "1" : "0"}
+          role="switch" onClick={() => setActive(v => !v)}><i /></button>
+      </div>
+    </Drawer>
+  );
+}
+
+function BedsPage({ beds, onSaveBed, onToggleBed, userInfo, therapistStatusText, onDisconnect }) {
+  const [bedForm, setBedForm] = useState(null);
+
+  const activeBeds   = beds.filter(b => b.active !== false).length;
+  const inactiveBeds = beds.length - activeBeds;
+
+  return (
+    <>
+      <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
+        <div>
+          <div className="page-title">จัดการเตียงบริการ</div>
+          <div className="page-sub">
+            เตียงและพื้นที่ให้บริการแพทย์แผนไทย · เปิด {activeBeds} / ปิด {inactiveBeds} / รวม {beds.length}
+          </div>
+        </div>
+        <button className="btn-primary" onClick={() => setBedForm({})}
+          style={{ display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap" }}>
+          <Icon name="plus" size={17} /> เพิ่มเตียง
+        </button>
+      </TopBar>
+
+      <div className="svc-content">
+        {beds.length === 0 && (
+          <div className="empty" style={{ flex:1 }}>
+            <Icon name="list" size={36} />
+            <div>ยังไม่มีเตียงบริการ กด "เพิ่มเตียง" เพื่อเริ่มต้น</div>
+          </div>
+        )}
+
+        {beds.length > 0 && (
+          <div className="reg-table">
+            <div className="reg-head">
+              <div className="reg-cell reg-num">#</div>
+              <div className="reg-cell" style={{ flex:2 }}>ชื่อเตียง / หมายเลข</div>
+              <div className="reg-cell" style={{ flex:1 }}>ห้อง / ตำแหน่ง</div>
+              <div className="reg-cell" style={{ flex:2 }}>หมายเหตุ</div>
+              <div className="reg-cell" style={{ width:80 }}>สถานะ</div>
+              <div className="reg-cell" style={{ width:110 }}></div>
+            </div>
+            <div className="reg-body">
+              {beds.map((b, i) => {
+                const on = b.active !== false;
+                return (
+                  <div key={b.id} className="reg-row">
+                    <div className="reg-cell reg-num">{i + 1}</div>
+                    <div className="reg-cell" style={{ flex:2, fontWeight:600, fontSize:14,
+                      opacity: on ? 1 : .5 }}>
+                      {b.name}
+                    </div>
+                    <div className="reg-cell" style={{ flex:1, color:"var(--ink-soft)", opacity: on ? 1 : .5 }}>
+                      {b.room || <span style={{ color:"var(--ink-faint)" }}>—</span>}
+                    </div>
+                    <div className="reg-cell" style={{ flex:2, fontSize:12, color:"var(--ink-faint)", opacity: on ? 1 : .5 }}>
+                      {b.note || <span>—</span>}
+                    </div>
+                    <div className="reg-cell" style={{ width:80 }}>
+                      <span className="pill" style={{
+                        color:      on ? "var(--st-confirm-ink)"  : "var(--st-cancel-ink)",
+                        background: on ? "var(--st-confirm-bg)"   : "var(--st-cancel-bg)",
+                        fontSize:11, padding:"3px 8px",
+                      }}>
+                        <span className="dot" />{on ? "เปิด" : "ปิด"}
+                      </span>
+                    </div>
+                    <div className="reg-cell" style={{ width:110, display:"flex", gap:6, justifyContent:"flex-end" }}>
+                      <button className="icon-btn" title="แก้ไข" onClick={() => setBedForm(b)}>
+                        <Icon name="pen" size={15} />
+                      </button>
+                      <button className="icon-btn" title={on ? "ปิดเตียง" : "เปิดเตียง"}
+                        onClick={() => onToggleBed(b)}
+                        style={{ color: on ? "var(--st-cancel-ink)" : "var(--st-confirm-ink)" }}>
+                        <Icon name={on ? "eyeOff" : "eye"} size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <BedForm
+        open={bedForm !== null}
+        bed={bedForm?.id ? bedForm : null}
+        onClose={() => setBedForm(null)}
+        onSave={(data) => { onSaveBed(data); setBedForm(null); }}
+      />
     </>
   );
 }
@@ -2003,6 +2165,11 @@ function App() {
     try { return JSON.parse(localStorage.getItem('thai_svc_therfees') || '{}'); } catch { return {}; }
   });
 
+  // เตียงบริการ
+  const [beds, setBeds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('thai_beds') || '[]'); } catch { return []; }
+  });
+
   // ── Effects (must all be before early return) ─────────────────────────────
   useEffect(() => { applyTheme(t.theme); }, [t.theme]);
   useEffect(() => { document.documentElement.dataset.density = t.density; }, [t.density]);
@@ -2039,6 +2206,10 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('thai_svc_therfees', JSON.stringify(serviceTherFees)); } catch {}
   }, [serviceTherFees]);
+
+  useEffect(() => {
+    try { localStorage.setItem('thai_beds', JSON.stringify(beds)); } catch {}
+  }, [beds]);
 
   // ดึงสถิติจาก HOSxP ovst ตามวันที่เลือก (เฉพาะจำนวนนัด)
   useEffect(() => {
@@ -2338,6 +2509,20 @@ function App() {
     showToast("บันทึกค่าบริการผู้ให้บริการเรียบร้อย");
   };
 
+  const handleSaveBed = (bedData) => {
+    setBeds(prev => {
+      const idx = prev.findIndex(b => b.id === bedData.id);
+      if (idx >= 0) { const n = [...prev]; n[idx] = bedData; return n; }
+      return [...prev, bedData];
+    });
+    showToast(bedData._isEdit ? "บันทึกการแก้ไขเตียงเรียบร้อย" : "เพิ่มเตียงเรียบร้อยแล้ว");
+  };
+
+  const handleToggleBed = (bed) => {
+    setBeds(prev => prev.map(b => b.id === bed.id ? { ...b, active: b.active === false } : b));
+    showToast(bed.active === false ? `เปิดเตียง "${bed.name}" แล้ว` : `ปิดเตียง "${bed.name}" แล้ว`);
+  };
+
   // ── Login gate ────────────────────────────────────────────────────────────
   if (!bms.connected) {
     return (
@@ -2451,6 +2636,18 @@ function App() {
             onReload={() => doLoadOperationItems(bms.config)}
             serviceTherFees={serviceTherFees}
             onSaveTherFee={handleSaveTherFee}
+          />
+        )}
+
+        {/* ── Beds page ── */}
+        {activePage === "bed" && (
+          <BedsPage
+            beds={beds}
+            onSaveBed={handleSaveBed}
+            onToggleBed={handleToggleBed}
+            userInfo={bms.userInfo}
+            therapistStatusText={therapistStatusText}
+            onDisconnect={doDisconnect}
           />
         )}
 
