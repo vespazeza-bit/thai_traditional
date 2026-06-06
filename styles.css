@@ -113,6 +113,9 @@ input, select, textarea { font-family: inherit; }
 .nav-item svg { flex: none; }
 .side-foot { margin-top: auto; }
 .side-foot .nav-item { color: var(--ink-faint); }
+.nav-sub-group { background: var(--surface-2); border-radius: var(--r-sm); margin: 0 4px 4px; }
+.nav-item.nav-sub { padding: 9px 12px 9px 32px; font-size: 13px; }
+.nav-item.nav-sub svg { opacity: .75; }
 
 /* ============ main ============ */
 .main { display: flex; flex-direction: column; min-width: 0; height: 100vh; }

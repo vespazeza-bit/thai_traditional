@@ -181,11 +181,18 @@ function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
 function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   const nav = [
     { id: "sched",  icon: "calendar", label: "ตารางนัด" },
-    { id: "cust",   icon: "users",    label: "ทะเบียนผู้รับบริการ" },
     { id: "ther",   icon: "user",     label: "ผู้ให้บริการ" },
-    { id: "svc",    icon: "leaf",     label: "บริการแพทย์แผนไทย" },
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
+  const settingsItems = [
+    { id: "cust", icon: "users", label: "ทะเบียนผู้รับบริการ" },
+    { id: "svc",  icon: "leaf",  label: "บริการแพทย์แผนไทย" },
+  ];
+  const inSettings = settingsItems.some(i => i.id === activePage);
+  const [settingsOpen, setSettingsOpen] = useState(inSettings);
+
+  useEffect(() => { if (inSettings) setSettingsOpen(true); }, [activePage]);
+
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
@@ -210,6 +217,7 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
           <div className="brand-sub">แพทย์แผนไทย</div>
         </div>
       </div>
+
       <div className="nav-section">เมนูหลัก</div>
       {nav.map(n => (
         <button key={n.id} className={"nav-item" + (activePage === n.id ? " active" : "")}
@@ -218,14 +226,46 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
           <span className="nav-label">{n.label}</span>
         </button>
       ))}
+
+      {/* ── ตั้งค่า (expandable) ── */}
+      <div className="nav-section">ตั้งค่า</div>
+      <button
+        className={"nav-item" + (inSettings && collapsed ? " active" : "")}
+        style={{ justifyContent: "space-between" }}
+        onClick={() => collapsed ? onNav("cust") : setSettingsOpen(o => !o)}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Icon name="settings" size={19} />
+          <span className="nav-label">ตั้งค่า</span>
+        </div>
+        <span className="nav-label" style={{
+          color: "var(--ink-faint)",
+          transform: settingsOpen ? "rotate(90deg)" : "rotate(0deg)",
+          transition: "transform .2s",
+          display: "flex",
+        }}>
+          <Icon name="chevR" size={14} />
+        </span>
+      </button>
+
+      {settingsOpen && !collapsed && (
+        <div className="nav-sub-group">
+          {settingsItems.map(n => (
+            <button key={n.id}
+              className={"nav-item nav-sub" + (activePage === n.id ? " active" : "")}
+              onClick={() => onNav(n.id)}
+            >
+              <Icon name={n.icon} size={16} />
+              <span className="nav-label">{n.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="side-foot">
         <button className="nav-item" onClick={onToggle}>
           <Icon name="panel" size={19} />
           <span className="nav-label">ย่อแถบเมนู</span>
-        </button>
-        <button className="nav-item">
-          <Icon name="settings" size={19} />
-          <span className="nav-label">ตั้งค่า</span>
         </button>
       </div>
     </aside>
@@ -1469,7 +1509,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                   <div className="reg-cell" style={{width:70}}>เวลา</div>
                   <div className="reg-cell" style={{flex:1}}>ชื่อ</div>
                   <div className="reg-cell" style={{flex:1,display:"flex"}}>บริการ</div>
-                  <div className="reg-cell" style={{width:130}}>หมอนวด</div>
+                  <div className="reg-cell" style={{width:130}}>ผู้ให้บริการ</div>
                   <div className="reg-cell" style={{width:90}}>สถานะ</div>
                 </div>
                 <div className="reg-body">
@@ -1688,7 +1728,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
             {therRows.length===0 ? <Empty msg="ยังไม่มีข้อมูลผู้ให้บริการ"/> : (
               <div className="reg-table">
                 <div className="reg-head">
-                  <div className="reg-cell" style={{flex:1}}>หมอนวด</div>
+                  <div className="reg-cell" style={{flex:1}}>ผู้ให้บริการ</div>
                   <div className="reg-cell" style={{width:72,textAlign:"right"}}>คิวรวม</div>
                   <div className="reg-cell" style={{width:80,textAlign:"right"}}>ชั่วโมง</div>
                   <div className="reg-cell" style={{width:110,textAlign:"right"}}>รายได้</div>
