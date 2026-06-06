@@ -144,8 +144,11 @@
     transition: background .2s;
   }
   .recent-item.latest {
-    background: rgba(255,255,255,.13);
-    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(180, 130, 40, 0.28);
+    border: 1px solid rgba(180, 130, 40, 0.45);
+  }
+  .recent-item.latest .recent-no {
+    color: #c9a45e;
   }
   .recent-no {
     font-size: 22px; font-weight: 900;
@@ -197,8 +200,8 @@
       <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" />
     </div>
     <div>
-      <div class="logo-name">เรือนสมุนไพร</div>
-      <div class="logo-sub">นวดแผนไทย · ระบบเรียกคิว</div>
+      <div class="logo-name">ThaiMed Scheduler</div>
+      <div class="logo-sub">ระบบจัดการคิวนัดหมายบริการแพทย์แผนไทย</div>
     </div>
   </div>
   <div class="clock">
@@ -269,6 +272,14 @@ setInterval(updateClock, 1000);
 // ── Helpers ───────────────────────────────────────────────
 function fmtNo(n) { return `A${String(n || 0).padStart(2,'0')}`; }
 
+// PDPA: แสดงเฉพาะชื่อ ซ่อนนามสกุลด้วย XXX
+function maskName(name) {
+  if (!name) return '—';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length <= 1) return name;
+  return parts.slice(0, -1).join(' ') + ' XXX';
+}
+
 // ── Render current ────────────────────────────────────────
 function renderCurrent(q) {
   const panel = document.getElementById('current-panel');
@@ -282,7 +293,7 @@ function renderCurrent(q) {
     return;
   }
   const qNo   = fmtNo(q.queueNo);
-  const name  = q.customer || (q.hn ? `HN ${q.hn}` : '—');
+  const name  = maskName(q.customer || (q.hn ? `HN ${q.hn}` : null));
   const bed   = q.bedLabel ? `<div class="info-chip">🛏 ${q.bedLabel}</div>` : '';
   const ther  = q.therName  ? `
     <div class="ther-row">
@@ -310,7 +321,7 @@ function renderRecent(history) {
   }
   list.innerHTML = history.map((q, i) => {
     const qNo  = fmtNo(q.queueNo);
-    const name = q.customer || (q.hn ? `HN ${q.hn}` : '—');
+    const name = maskName(q.customer || (q.hn ? `HN ${q.hn}` : null));
     const sub  = q.bedLabel || '—';
     return `
       <div class="recent-item${i === 0 ? ' latest' : ''}">
