@@ -1,6 +1,37 @@
 /* ===== Timeline board: หมอนวด × เวลา ===== */
 const { useState, useEffect, useRef, useMemo } = React;
 
+/* ── Custom tooltip portal ── */
+function ApptTooltip({ data, pos }) {
+  if (!data || !pos) return null;
+  const { a, s } = data;
+  const displayName = a.customer || (a.hn ? `HN ${a.hn}` : '—');
+  const st = STATUSES[a.status] || STATUSES.booked;
+  // position: try right of cursor, clamp to viewport
+  const vpW = window.innerWidth;
+  const tipW = 230;
+  const left = pos.x + 14 + tipW > vpW ? pos.x - tipW - 8 : pos.x + 14;
+  const top  = Math.min(pos.y - 8, window.innerHeight - 160);
+  return ReactDOM.createPortal(
+    <div className="appt-tip" style={{ top, left }}>
+      <div className="appt-tip-time">
+        <Icon name="clock" size={11} />
+        {fmtMin(a.start)}–{fmtMin(a.start + s.dur)} · {s.dur}น.
+      </div>
+      <div className="appt-tip-divider" />
+      {a.hn && <div className="appt-tip-hn">HN {a.hn}</div>}
+      <div className="appt-tip-name">{displayName}</div>
+      {s.name && <div className="appt-tip-svc">
+        <Icon name="leaf" size={11} /> {s.name}
+      </div>}
+      <div className="appt-tip-status" style={{ color: st.ink, background: st.bg }}>
+        {st.label}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function TimeGutter() {
   const rows = [];
   for (let m = OPEN_MIN; m <= CLOSE_MIN; m += SLOT) {
@@ -25,30 +56,38 @@ function ApptCard({ a, rowH, onClick }) {
   const height = (s.dur / SLOT) * rowH - 4;
   const cancelled = a.status === "cancelled";
   const done = a.status === "done";
-  const compact = height < 56;
+  const displayName = a.customer || (a.hn ? `HN ${a.hn}` : '—');
+  const hnLabel = a.hn ? `HN ${a.hn}` : '';
+  const [tipPos, setTipPos] = useState(null);
+
   return (
-    <div
-      className={"appt" + (compact ? " compact" : "")}
-      style={{
-        top: top + 2, height,
-        background: st.bg,
-        borderLeftColor: st.ink,
-        color: st.ink,
-        opacity: cancelled ? 0.5 : 1,
-        textDecoration: cancelled ? "line-through" : "none",
-        filter: done ? "saturate(0.7)" : "none",
-      }}
-      onClick={(e) => { e.stopPropagation(); onClick(a); }}
-    >
-      <div className="appt-time">{fmtMin(a.start)}–{fmtMin(a.start + s.dur)}</div>
-      <div className="appt-name" style={{ color: "var(--ink)" }}>{a.customer}</div>
-      {!compact && <div className="appt-svc">{s.name} · {s.dur}น.</div>}
-      {(a.status === "service" || a.status === "arrived") && (
-        <span className="appt-tag" style={{ color: st.ink }}>
-          {a.status === "service" ? "● กำลังนวด" : "มาถึง"}
-        </span>
-      )}
-    </div>
+    <>
+      <div
+        className="appt"
+        style={{
+          top: top + 2, height,
+          background: st.bg,
+          borderLeftColor: st.ink,
+          color: st.ink,
+          opacity: cancelled ? 0.5 : 1,
+          textDecoration: cancelled ? "line-through" : "none",
+          filter: done ? "saturate(0.7)" : "none",
+        }}
+        onMouseEnter={(e) => setTipPos({ x: e.clientX, y: e.clientY })}
+        onMouseMove={(e)  => setTipPos({ x: e.clientX, y: e.clientY })}
+        onMouseLeave={()  => setTipPos(null)}
+        onClick={(e) => { e.stopPropagation(); setTipPos(null); onClick(a); }}
+      >
+        {hnLabel && <div className="appt-hn">{hnLabel}</div>}
+        <div className="appt-name" style={{ color: "var(--ink)" }}>{displayName}</div>
+        {(a.status === "service" || a.status === "arrived") && (
+          <span className="appt-tag" style={{ color: st.ink }}>
+            {a.status === "service" ? "● กำลังนวด" : "มาถึง"}
+          </span>
+        )}
+      </div>
+      <ApptTooltip data={tipPos ? { a, s } : null} pos={tipPos} />
+    </>
   );
 }
 

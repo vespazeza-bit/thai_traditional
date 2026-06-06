@@ -282,11 +282,14 @@ function OperationDetail({ item, onClose }) {
 
 // ── Services registry page (HOSxP health_med_operation_item) ──────────────────
 
+const SVC_PAGE_SIZE = 20;
+
 function ServicesPage({ operationItems, operationStatus, operationErrMsg,
   userInfo, therapistStatusText, onDisconnect, onReload }) {
 
   const [search,   setSearch]   = useState("");
   const [selected, setSelected] = useState(null);
+  const [page,     setPage]     = useState(1);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -296,6 +299,12 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
       Object.values(it._raw || {}).some(v => v && String(v).toLowerCase().includes(q))
     );
   }, [operationItems, search]);
+
+  // reset page when search changes
+  useEffect(() => { setPage(1); }, [search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / SVC_PAGE_SIZE));
+  const pageItems  = filtered.slice((page - 1) * SVC_PAGE_SIZE, page * SVC_PAGE_SIZE);
 
   return (
     <>
@@ -343,8 +352,26 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
                 value={search} onChange={e => setSearch(e.target.value)}
                 style={{ width: "100%" }} />
             </div>
-            <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-              แสดง {filtered.length} รายการ จากทั้งหมด {operationItems.length} รายการ
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
+                แสดง {filtered.length === 0 ? 0 : (page - 1) * SVC_PAGE_SIZE + 1}–{Math.min(page * SVC_PAGE_SIZE, filtered.length)} จากทั้งหมด {filtered.length} รายการ
+                {filtered.length !== operationItems.length && ` (กรองจาก ${operationItems.length})`}
+              </div>
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                    disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                    <Icon name="chevL" size={14} /> ก่อนหน้า
+                  </button>
+                  <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 80, textAlign: "center" }}>
+                    หน้า {page} / {totalPages}
+                  </span>
+                  <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                    disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                    ถัดไป <Icon name="chevR" size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Registry table */}
@@ -357,11 +384,12 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
                 <div className="reg-cell" style={{ width: 90 }}>สถานะ</div>
                 <div className="reg-cell reg-action"></div>
               </div>
-              {filtered.map((it, i) => {
+              {pageItems.map((it, i) => {
                 const active = it.isActive !== false;
+                const globalIndex = (page - 1) * SVC_PAGE_SIZE + i + 1;
                 return (
                   <div key={it.id} className="reg-row" onClick={() => setSelected(it)}>
-                    <div className="reg-cell reg-num">{i + 1}</div>
+                    <div className="reg-cell reg-num">{globalIndex}</div>
                     <div className="reg-cell" style={{ flex: 2, fontWeight: 600, fontSize: 14 }}>
                       {it.name}
                     </div>
@@ -398,6 +426,45 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
                 </div>
               )}
             </div>
+
+            {/* Bottom pagination */}
+            {totalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, paddingBottom: 8, flexWrap: "wrap" }}>
+                <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 13 }}
+                  disabled={page <= 1} onClick={() => setPage(1)} title="หน้าแรก">
+                  «
+                </button>
+                <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                  disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                  <Icon name="chevL" size={14} /> ก่อนหน้า
+                </button>
+                {(() => {
+                  const pages = [];
+                  const delta = 2;
+                  const left  = Math.max(1, page - delta);
+                  const right = Math.min(totalPages, page + delta);
+                  if (left > 1) { pages.push(1); if (left > 2) pages.push("…"); }
+                  for (let pg = left; pg <= right; pg++) pages.push(pg);
+                  if (right < totalPages) { if (right < totalPages - 1) pages.push("…"); pages.push(totalPages); }
+                  return pages.map((pg, idx) =>
+                    pg === "…"
+                      ? <span key={"dot"+idx} style={{ padding: "0 4px", color: "var(--ink-faint)" }}>…</span>
+                      : <button key={pg}
+                          className={pg === page ? "btn-primary" : "btn-ghost"}
+                          style={{ padding: "5px 10px", fontSize: 13, minWidth: 36 }}
+                          onClick={() => setPage(pg)}>{pg}</button>
+                  );
+                })()}
+                <button className="btn-ghost" style={{ padding: "5px 12px", fontSize: 13 }}
+                  disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                  ถัดไป <Icon name="chevR" size={14} />
+                </button>
+                <button className="btn-ghost" style={{ padding: "5px 10px", fontSize: 13 }}
+                  disabled={page >= totalPages} onClick={() => setPage(totalPages)} title="หน้าสุดท้าย">
+                  »
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -715,9 +782,10 @@ function App() {
   const [filter, setFilter]  = useState("all");
   const [query, setQuery]    = useState("");
   const [collapsed, setCollapsed] = useState(false);
-  const [booking, setBooking] = useState(null);
+  const [booking,  setBooking]  = useState(null);
   const [selected, setSelected] = useState(null);
-  const [toast, setToast]    = useState("");
+  const [toast, setToast]       = useState("");
+  const [hosxpStats, setHosxpStats] = useState(null);
   const [activePage, setActivePage] = useState("sched");
 
   // BMS session
@@ -758,9 +826,13 @@ function App() {
 
   useEffect(() => {
     setAppts(p => {
+      if (therapistStatus === "ok") {
+        // เชื่อมต่อ HOSxP จริง — ตัด mock data ออก เหลือเฉพาะนัดที่สร้างจริง
+        const realOnly = (p[key] || []).filter(a => a.id && a.id.includes('_new_'));
+        return { ...p, [key]: realOnly };
+      }
       if (p[key]) return p;
-      const useReal = therapistStatus === "ok";
-      return { ...p, [key]: useReal ? [] : genDay(date, todayKey) };
+      return { ...p, [key]: genDay(date, todayKey) };
     });
   }, [key, therapistStatus]);
 
@@ -768,6 +840,18 @@ function App() {
   useEffect(() => {
     try { localStorage.setItem('thai_appts', JSON.stringify(appts)); } catch {}
   }, [appts]);
+
+  // ดึงสถิติจาก HOSxP ovst ตามวันที่เลือก (เฉพาะจำนวนนัด)
+  useEffect(() => {
+    if (!bms.connected || !bms.config?.apiUrl) { setHosxpStats(null); return; }
+    const dateKey = dayKey(date);
+    (async () => {
+      try {
+        const r1 = await executeSqlViaApi(`SELECT COUNT(*) AS total FROM ovst WHERE vstdate='${dateKey}'`, bms.config);
+        setHosxpStats({ total: r1?.[0] ? Number(r1[0].total) : 0 });
+      } catch { setHosxpStats(null); }
+    })();
+  }, [key, bms.connected]);
 
   // Keep global svc() in sync — ค้นหาจาก HOSxP items ก่อน แล้ว fallback mock
   useEffect(() => {
@@ -779,6 +863,13 @@ function App() {
       services.find(s => s.id === id)  ||
       SERVICES.find(s => s.id === id);
   }, [operationItems, services]);
+
+  // Keep global ther() in sync — ค้นหาจาก HOSxP therapists ก่อน แล้ว fallback mock
+  useEffect(() => {
+    window.ther = (id) =>
+      therapistsData.find(t => t.id === id) ||
+      THERAPISTS.find(t => t.id === id);
+  }, [therapistsData]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
@@ -1081,9 +1172,13 @@ function App() {
   );
   const rowH = t.density === "compact" ? 46 : t.density === "comfy" ? 70 : 58;
   const activeAppts = list.filter(a => a.status !== "cancelled");
-  const revenue  = activeAppts.filter(a => a.status === "done").reduce((s, a) => s + (svc(a.serviceId)?.price || 0), 0);
-  const upcoming = activeAppts.filter(a => a.status === "booked" || a.status === "confirmed").length;
-  const inHouse  = activeAppts.filter(a => a.status === "arrived" || a.status === "service").length;
+  const upcoming   = activeAppts.filter(a => a.status === "booked").length;
+  const confirmed  = activeAppts.filter(a => a.status === "confirmed").length;
+  const inHouse    = activeAppts.filter(a => a.status === "arrived").length;
+  const inService  = activeAppts.filter(a => a.status === "service").length;
+  const doneCnt    = activeAppts.filter(a => a.status === "done").length;
+  const totalStat  = hosxpStats?.total ?? activeAppts.length;
+  const incomeStat = activeAppts.filter(a => a.status === "done").reduce((s, a) => s + (svc(a.serviceId)?.price || 0), 0);
   const shiftDay = (d) => { const nd = new Date(date); nd.setDate(nd.getDate() + d); setDate(nd); };
   const td = thaiDate(date);
   const selectedAppt = list.find(a => a.id === selected);
@@ -1094,14 +1189,20 @@ function App() {
     : `หมอนวด (ตัวอย่าง ${therapistsData.length} คน)`;
 
   const saveAppt = (data) => {
-    const id = `a${key}_new_${Date.now()}`;
-    setAppts(p => ({ ...p, [key]: [...(p[key] || []), { ...data, id }] }));
+    if (data.id) {
+      setAppts(p => ({ ...p, [key]: (p[key] || []).map(a => a.id === data.id ? { ...a, ...data } : a) }));
+      showToast("บันทึกการแก้ไขเรียบร้อยแล้ว");
+    } else {
+      const id = `a${key}_new_${Date.now()}`;
+      setAppts(p => ({ ...p, [key]: [...(p[key] || []), { ...data, id }] }));
+      showToast("จองนัดเรียบร้อยแล้ว");
+    }
     setBooking(null);
-    showToast("จองนัดเรียบร้อยแล้ว");
   };
+
   const setApptStatus = (appt, status) => {
     setAppts(p => ({ ...p, [key]: (p[key] || []).map(a => a.id === appt.id ? { ...a, status } : a) }));
-    showToast(`อัปเดตเป็น "${STATUSES[status].label}"`);
+    showToast(`อัปเดตเป็น "${STATUSES[status]?.label || status}"`);
   };
   const cancelAppt = (appt) => {
     setAppts(p => ({ ...p, [key]: (p[key] || []).map(a => a.id === appt.id ? { ...a, status: "cancelled" } : a) }));
@@ -1194,10 +1295,13 @@ function App() {
             </div>
 
             <div className="stats">
-              <Stat icon="calendar" val={activeAppts.length}             lab="นัดทั้งหมดวันนี้"   ink="var(--st-booked-ink)"  bg="var(--st-booked-bg)" />
-              <Stat icon="clock"    val={upcoming}                        lab="รอเข้ารับบริการ"   ink="var(--st-arrived-ink)" bg="var(--st-arrived-bg)" />
-              <Stat icon="spark"    val={inHouse}                         lab="อยู่ในร้านขณะนี้"   ink="var(--st-service-ink)" bg="var(--st-service-bg)" />
-              <Stat icon="money"    val={revenue.toLocaleString() + "฿"}  lab="รายได้ (เสร็จสิ้น)" ink="var(--st-confirm-ink)" bg="var(--st-confirm-bg)" />
+              <Stat icon="calendar" val={totalStat}                                  lab="นัดทั้งหมดวันนี้"   ink="var(--st-booked-ink)"  bg="var(--st-booked-bg)" />
+              <Stat icon="clock"    val={upcoming}                                   lab="รอเข้ารับบริการ"   ink="var(--st-arrived-ink)" bg="var(--st-arrived-bg)" />
+              <Stat icon="check"    val={confirmed}                                  lab="ยืนยันแล้ว"        ink="var(--st-confirm-ink)" bg="var(--st-confirm-bg)" />
+              <Stat icon="spark"    val={inHouse}                                    lab="อยู่ในร้านขณะนี้"   ink="var(--st-service-ink)" bg="var(--st-service-bg)" />
+              <Stat icon="spark"    val={inService}                                  lab="กำลังนวด"          ink="var(--st-done-ink)"    bg="var(--st-done-bg)" />
+              <Stat icon="check"    val={doneCnt}                                    lab="เสร็จสิ้น"          ink="var(--st-done-ink)"    bg="var(--st-done-bg)" />
+              <Stat icon="money"    val={Number(incomeStat).toLocaleString() + "฿"} lab="รายได้ (เสร็จสิ้น)" ink="var(--st-confirm-ink)" bg="var(--st-confirm-bg)" />
             </div>
 
             <div className="board-wrap">
@@ -1226,10 +1330,13 @@ function App() {
         onClose={() => setBooking(null)} onSave={saveAppt}
         executeQuery={executeQuery}
         vstdate={key}
+        existingAppts={list}
       />
       <DetailPanel
         open={!!selected} appt={selectedAppt}
-        onClose={() => setSelected(null)} onStatus={setApptStatus} onCancel={cancelAppt}
+        onClose={() => setSelected(null)}
+        onStatus={setApptStatus}
+        onCancel={cancelAppt}
       />
       {/* ServiceForm: เก็บไว้เผื่อใช้เพิ่มบริการ local */}
 

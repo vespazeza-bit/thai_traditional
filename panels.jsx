@@ -246,7 +246,7 @@ function PatientAutocomplete({ executeQuery, value, onChange, onSelect, vstdate 
 
 // ── Booking form (centered modal) ────────────────────────────────────────────
 
-function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp, vstdate }) {
+function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, services: servicesProp, vstdate, existingAppts }) {
   const serviceList = servicesProp || SERVICES;
   const [customer,   setCustomer]   = useState("");
   const [phone,      setPhone]      = useState("");
@@ -256,14 +256,21 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const [start,      setStart]      = useState(OPEN_MIN);
   const [note,       setNote]       = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const [dupWarn,    setDupWarn]    = useState(null); // appointment ที่ซ้ำ
+
+  const isEdit = !!(draft && draft.id);
 
   useEffect(() => {
     if (open && draft) {
       setTherapistId(draft.therapistId || therapists[0]?.id);
       setStart(draft.start ?? OPEN_MIN);
-      // เลือกบริการแรกที่มีอยู่จริงใน serviceList
-      setServiceId(serviceList[0]?.id || "thai60");
-      setCustomer(""); setPhone(""); setHn(""); setNote("");
+      setCustomer(draft.customer || "");
+      setPhone(draft.phone || "");
+      setHn(draft.hn || "");
+      setNote(draft.note || "");
+      // เลือก serviceId จาก draft ถ้ามีใน serviceList ไม่งั้นเลือกแรก
+      const draftSvc = draft.serviceId && serviceList.find(sv => sv.id === draft.serviceId);
+      setServiceId(draftSvc ? draft.serviceId : (serviceList[0]?.id || "thai60"));
       setShowSearch(false);
     }
   }, [open, draft, serviceList.length]);
@@ -291,7 +298,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
 
         {/* Header */}
         <div className="modal-head">
-          <div className="drawer-title">จองนัดใหม่</div>
+          <div className="drawer-title">{isEdit ? "แก้ไขการจองนัด" : "จองนัดใหม่"}</div>
           <button className="icon-btn" onClick={onClose}><Icon name="close" /></button>
         </div>
 
@@ -419,14 +426,50 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
         <div className="modal-foot" style={{ display: "flex", gap: 10 }}>
           <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>ยกเลิก</button>
           <button className="btn-fill"  style={{ flex: 2 }} disabled={!valid}
-            onClick={() => onSave({
-              customer: customer.trim(), phone, hn,
-              serviceId, therapistId, start, note,
-              status: "booked", gender: "ญ",
-            })}>
-            <Icon name="check" size={16} /> ยืนยันการจอง
+            onClick={() => {
+              if (!isEdit && hn) {
+                const dup = (existingAppts || []).find(
+                  a => a.hn === hn && a.status !== "cancelled" && a.id !== draft?.id
+                );
+                if (dup) { setDupWarn(dup); return; }
+              }
+              onSave({
+                ...(isEdit ? { id: draft.id, status: draft.status } : { status: "booked" }),
+                customer: customer.trim(), phone, hn,
+                serviceId, therapistId, start, note, gender: "ญ",
+              });
+            }}>
+            <Icon name="check" size={16} /> {isEdit ? "บันทึกการแก้ไข" : "ยืนยันการจอง"}
           </button>
         </div>
+
+        {/* Duplicate HN warning dialog */}
+        {dupWarn && (
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10, borderRadius: 16,
+          }}>
+            <div style={{
+              background: "var(--surface)", borderRadius: 14, padding: 24, maxWidth: 320,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)", textAlign: "center",
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+              <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>มีนัดซ้ำในวันเดียวกัน</div>
+              <div style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 16, lineHeight: 1.6 }}>
+                HN {dupWarn.hn} — <strong>{dupWarn.customer}</strong><br/>
+                มีนัดอยู่แล้ว เวลา {fmtMin(dupWarn.start)}<br/>
+                ต้องการจองนัดเพิ่มหรือไม่?
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setDupWarn(null)}>ยกเลิก</button>
+                <button className="btn-fill" style={{ flex: 1 }} onClick={() => {
+                  setDupWarn(null);
+                  onSave({ status: "booked", customer: customer.trim(), phone, hn, serviceId, therapistId, start, note, gender: "ญ" });
+                }}>จองต่อ</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -436,9 +479,9 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
 
 function DetailPanel({ open, onClose, appt, onStatus, onCancel }) {
   if (!appt) return <Drawer open={open} onClose={onClose} title="รายละเอียดนัด"><div /></Drawer>;
-  const s = svc(appt.serviceId) || { name: appt.serviceId || '—', dur: 60, price: 0 };
-  const t = ther(appt.therapistId) || { name: appt.therapistId || '—', color: '#888', spec: '—' };
-  const st = STATUSES[appt.status];
+  const s  = svc(appt.serviceId)   || { name: appt.serviceId   || '—', dur: 60, price: 0 };
+  const t  = ther(appt.therapistId) || { name: appt.therapistId || '—', color: 'clay', spec: '—' };
+  const st = STATUSES[appt.status]  || STATUSES.booked;
   return (
     <Drawer
       open={open} onClose={onClose} title="รายละเอียดนัด"
