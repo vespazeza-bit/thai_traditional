@@ -2863,6 +2863,8 @@ function App() {
         onCancel={cancelAppt}
         therapists={therapistsData}
         services={activeServices}
+        beds={beds}
+        existingAppts={list}
       />
       {/* ServiceForm: เก็บไว้เผื่อใช้เพิ่มบริการ local */}
 

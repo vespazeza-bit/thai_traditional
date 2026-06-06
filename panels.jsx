@@ -596,12 +596,13 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
 
 // ── Detail / Edit panel (modal) ───────────────────────────────────────────────
 
-function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, services }) {
+function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, services, beds, existingAppts }) {
   const serviceList = services || SERVICES;
   const [serviceId,   setServiceId]   = useState("");
   const [therapistId, setTherapistId] = useState("");
   const [start,       setStart]       = useState(OPEN_MIN);
   const [status,      setStatus]      = useState("booked");
+  const [bedId,       setBedId]       = useState("");
 
   useEffect(() => {
     if (open && appt) {
@@ -609,6 +610,7 @@ function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, servic
       setTherapistId(appt.therapistId || therapists?.[0]?.id || "");
       setStart(appt.start ?? OPEN_MIN);
       setStatus(appt.status || "booked");
+      setBedId(appt.bedId || "");
     }
   }, [open, appt]);
 
@@ -621,8 +623,21 @@ function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, servic
   const timeOpts = [];
   for (let m = OPEN_MIN; m <= CLOSE_MIN - 30; m += SLOT) timeOpts.push(m);
 
+  // เตียงที่ active และว่างในช่วงเวลาที่แก้ไข (ยกเว้น appt ตัวเอง)
+  const curDur = s?.dur || 60;
+  const activeBeds = (beds || []).filter(b => b.active !== false);
+  const availableBeds = activeBeds.filter(b =>
+    !(existingAppts || []).some(a => {
+      if (a.status === "cancelled") return false;
+      if (a.id === appt.id) return false;
+      if (a.bedId !== b.id) return false;
+      const aDur = (svc(a.serviceId)?.dur) || 60;
+      return a.start < start + curDur && a.start + aDur > start;
+    })
+  );
+
   const handleSave = () => {
-    onSave({ ...appt, serviceId, therapistId, start, status });
+    onSave({ ...appt, serviceId, therapistId, start, status, bedId: bedId || null });
     onClose();
   };
 
@@ -692,6 +707,29 @@ function DetailPanel({ open, onClose, appt, onSave, onCancel, therapists, servic
                 </select>
               </div>
             </div>
+
+            {/* เตียงบริการ */}
+            {activeBeds.length > 0 && (
+              <div className="field">
+                <label>เตียงบริการ</label>
+                <select className="select" value={bedId} onChange={e => setBedId(e.target.value)}>
+                  <option value="">— ไม่ระบุเตียง —</option>
+                  {activeBeds.map(b => {
+                    const free = availableBeds.some(ab => ab.id === b.id);
+                    return (
+                      <option key={b.id} value={b.id} disabled={!free}>
+                        {b.name}{b.room ? ` (ห้อง ${b.room})` : ""}{!free ? " — ไม่ว่าง" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                {bedId && !availableBeds.some(b => b.id === bedId) && (
+                  <div style={{ fontSize: 12, color: "#dc2626", marginTop: 4 }}>
+                    ⚠ เตียงนี้ถูกจองในช่วงเวลาที่เลือกแล้ว กรุณาเลือกเตียงอื่น
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ค่าบริการ */}
             <div className="kv">
