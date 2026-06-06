@@ -256,7 +256,8 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
   const [start,      setStart]      = useState(OPEN_MIN);
   const [note,       setNote]       = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [dupWarn,    setDupWarn]    = useState(null); // appointment ที่ซ้ำ
+  const [dupWarn,    setDupWarn]    = useState(null);
+  const [pttypeName, setPttypeName] = useState("");
 
   const isEdit = !!(draft && draft.id);
 
@@ -268,7 +269,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
       setPhone(draft.phone || "");
       setHn(draft.hn || "");
       setNote(draft.note || "");
-      // เลือก serviceId จาก draft ถ้ามีใน serviceList ไม่งั้นเลือกแรก
+      setPttypeName(draft.pttypeName || "");
       const draftSvc = draft.serviceId && serviceList.find(sv => sv.id === draft.serviceId);
       setServiceId(draftSvc ? draft.serviceId : (serviceList[0]?.id || "thai60"));
       setShowSearch(false);
@@ -279,6 +280,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
     setCustomer(p.fullname || "");
     setPhone(p.phone || p.mobile_phone_number || p.tel1 || "");
     setHn(p.hn || "");
+    setPttypeName(p.pttype_name || "");
     setShowSearch(false);
   };
 
@@ -435,7 +437,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
               }
               onSave({
                 ...(isEdit ? { id: draft.id, status: draft.status } : { status: "booked" }),
-                customer: customer.trim(), phone, hn,
+                customer: customer.trim(), phone, hn, pttypeName,
                 serviceId, therapistId, start, note, gender: "ญ",
               });
             }}>
@@ -464,7 +466,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
                 <button className="btn-ghost" style={{ flex: 1 }} onClick={() => setDupWarn(null)}>ยกเลิก</button>
                 <button className="btn-fill" style={{ flex: 1 }} onClick={() => {
                   setDupWarn(null);
-                  onSave({ status: "booked", customer: customer.trim(), phone, hn, serviceId, therapistId, start, note, gender: "ญ" });
+                  onSave({ status: "booked", customer: customer.trim(), phone, hn, pttypeName, serviceId, therapistId, start, note, gender: "ญ" });
                 }}>จองต่อ</button>
               </div>
             </div>

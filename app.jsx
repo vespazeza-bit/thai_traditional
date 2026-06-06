@@ -280,6 +280,272 @@ function OperationDetail({ item, onClose }) {
   );
 }
 
+// ── Customers page (ทะเบียนคนไข้จากการจองนัด) ────────────────────────────────
+const CUST_PAGE_SIZE = 25;
+
+function CustomersPage({ appts, therapistsData, operationItems,
+  userInfo, therapistStatusText, onDisconnect }) {
+
+  const [search,    setSearch]    = useState("");
+  const [dateFrom,  setDateFrom]  = useState("");
+  const [dateTo,    setDateTo]    = useState("");
+  const [ptFilter,  setPtFilter]  = useState("");
+  const [page,      setPage]      = useState(1);
+
+  // Flatten appointments from all dates → rows
+  const allRows = useMemo(() => {
+    const rows = [];
+    Object.entries(appts).forEach(([dateKey, dayAppts]) => {
+      (dayAppts || []).forEach(a => {
+        if (a.status === "cancelled") return;
+        const sv = svc(a.serviceId) || {};
+        const th = ther(a.therapistId) || {};
+        rows.push({
+          ...a,
+          dateKey,
+          svcName:  sv.name  || a.serviceId || '—',
+          svcDur:   sv.minute != null ? sv.minute : (sv.dur != null ? sv.dur : '—'),
+          svcPrice: sv.price  != null ? Number(sv.price) : null,
+          therName: th.fullname || th.name || a.therapistId || '—',
+        });
+      });
+    });
+    // sort newest date first, then by start time
+    return rows.sort((a, b) =>
+      b.dateKey.localeCompare(a.dateKey) || a.start - b.start
+    );
+  }, [appts, therapistsData, operationItems]);
+
+  // Unique pttype list for filter dropdown
+  const pttypeOptions = useMemo(() => {
+    const set = new Set(allRows.map(r => r.pttypeName).filter(Boolean));
+    return [...set].sort();
+  }, [allRows]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allRows.filter(r => {
+      if (dateFrom && r.dateKey < dateFrom) return false;
+      if (dateTo   && r.dateKey > dateTo)   return false;
+      if (ptFilter && r.pttypeName !== ptFilter) return false;
+      if (q && !(
+        (r.hn || "").toLowerCase().includes(q) ||
+        (r.customer || "").toLowerCase().includes(q)
+      )) return false;
+      return true;
+    });
+  }, [allRows, search, dateFrom, dateTo, ptFilter]);
+
+  useEffect(() => { setPage(1); }, [search, dateFrom, dateTo, ptFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / CUST_PAGE_SIZE));
+  const pageRows   = filtered.slice((page - 1) * CUST_PAGE_SIZE, page * CUST_PAGE_SIZE);
+
+  const thaiDateStr = (d) => {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    const months = ['','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    return `${Number(day)} ${months[Number(m)]} ${Number(y) + 543}`;
+  };
+
+  const exportCSV = () => {
+    const headers = ['ลำดับ','วันที่รับบริการ','HN','ชื่อ-สกุล','สิทธิรักษา',
+      'รายการรับบริการ','ระยะเวลา(นาที)','ผู้ให้บริการ','ราคาค่าบริการ','สถานะ'];
+    const dataRows = filtered.map((r, i) => [
+      i + 1,
+      thaiDateStr(r.dateKey),
+      r.hn || '',
+      r.customer || '',
+      r.pttypeName || '',
+      r.svcName,
+      r.svcDur,
+      r.therName,
+      r.svcPrice != null ? r.svcPrice : '',
+      STATUSES[r.status]?.label || r.status || '',
+    ]);
+    const csv = [headers, ...dataRows]
+      .map(row => row.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `appointments_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <>
+      <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
+        <div>
+          <div className="page-title">ทะเบียนลูกค้า</div>
+          <div className="page-sub">รายการจองนัดทั้งหมด · {allRows.length} รายการ</div>
+        </div>
+        <button className="btn-primary" onClick={exportCSV}
+          style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+          <Icon name="chart" size={16} /> Export Excel
+        </button>
+      </TopBar>
+
+      <div className="svc-content" style={{ gap: 12 }}>
+        {/* ── Filter bar ── */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "flex-end" }}>
+          {/* Date from */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>วันที่เริ่ม</label>
+            <input type="date" className="input" style={{ width: 148, fontSize: 13, padding: "6px 10px" }}
+              value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          {/* Date to */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>ถึงวันที่</label>
+            <input type="date" className="input" style={{ width: 148, fontSize: 13, padding: "6px 10px" }}
+              value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+          {/* Search */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 180 }}>
+            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>ค้นหา HN / ชื่อ-สกุล</label>
+            <div className="search" style={{ width: "100%" }}>
+              <Icon name="search" size={15} />
+              <input placeholder="พิมพ์ HN หรือชื่อ..." value={search}
+                onChange={e => setSearch(e.target.value)} style={{ width: "100%" }} />
+            </div>
+          </div>
+          {/* สิทธิรักษา filter */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 11.5, color: "var(--ink-faint)", fontWeight: 600 }}>สิทธิรักษา</label>
+            <select className="select" style={{ width: 160, fontSize: 13, padding: "6px 10px" }}
+              value={ptFilter} onChange={e => setPtFilter(e.target.value)}>
+              <option value="">ทั้งหมด</option>
+              {pttypeOptions.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+            </select>
+          </div>
+          {/* Clear */}
+          {(search || dateFrom || dateTo || ptFilter) && (
+            <button className="btn-ghost" style={{ padding: "6px 14px", fontSize: 13, alignSelf: "flex-end" }}
+              onClick={() => { setSearch(""); setDateFrom(""); setDateTo(""); setPtFilter(""); }}>
+              ล้างตัวกรอง
+            </button>
+          )}
+        </div>
+
+        {/* ── Summary row ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ fontSize: 13, color: "var(--ink-faint)" }}>
+            แสดง {filtered.length === 0 ? 0 : (page - 1) * CUST_PAGE_SIZE + 1}–{Math.min(page * CUST_PAGE_SIZE, filtered.length)} จาก {filtered.length} รายการ
+          </div>
+          {totalPages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+                disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+                <Icon name="chevL" size={13} /> ก่อนหน้า
+              </button>
+              <span style={{ fontSize: 13, color: "var(--ink-soft)", minWidth: 70, textAlign: "center" }}>
+                หน้า {page} / {totalPages}
+              </span>
+              <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+                disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+                ถัดไป <Icon name="chevR" size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* ── Table ── */}
+        <div className="reg-table" style={{ fontSize: 13 }}>
+          <div className="reg-head" style={{ fontSize: 12 }}>
+            <div className="reg-cell reg-num">#</div>
+            <div className="reg-cell" style={{ width: 108 }}>วันที่รับบริการ</div>
+            <div className="reg-cell" style={{ width: 90 }}>HN</div>
+            <div className="reg-cell" style={{ flex: 2 }}>ชื่อ-สกุล</div>
+            <div className="reg-cell" style={{ width: 110 }}>สิทธิรักษา</div>
+            <div className="reg-cell" style={{ flex: 3 }}>รายการรับบริการ</div>
+            <div className="reg-cell" style={{ width: 70, textAlign: "center" }}>เวลา(น.)</div>
+            <div className="reg-cell" style={{ flex: 2 }}>ผู้ให้บริการ</div>
+            <div className="reg-cell" style={{ width: 90, textAlign: "right" }}>ค่าบริการ</div>
+            <div className="reg-cell" style={{ width: 88 }}>สถานะ</div>
+          </div>
+
+          {pageRows.map((r, i) => {
+            const globalIdx = (page - 1) * CUST_PAGE_SIZE + i + 1;
+            const st = STATUSES[r.status] || STATUSES.booked;
+            return (
+              <div key={r.id} className="reg-row">
+                <div className="reg-cell reg-num">{globalIdx}</div>
+                <div className="reg-cell" style={{ width: 108, fontSize: 12 }}>{thaiDateStr(r.dateKey)}</div>
+                <div className="reg-cell" style={{ width: 90, fontFamily: "monospace", fontSize: 12, color: "var(--ink-soft)" }}>
+                  {r.hn || '—'}
+                </div>
+                <div className="reg-cell" style={{ flex: 2, fontWeight: 600 }}>{r.customer || '—'}</div>
+                <div className="reg-cell" style={{ width: 110, fontSize: 12, color: "var(--ink-soft)" }}>
+                  {r.pttypeName || <span style={{ color: "var(--ink-faint)" }}>—</span>}
+                </div>
+                <div className="reg-cell" style={{ flex: 3, fontSize: 12, lineHeight: 1.4 }}>{r.svcName}</div>
+                <div className="reg-cell" style={{ width: 70, textAlign: "center", color: "var(--ink-soft)" }}>
+                  {r.svcDur !== '—' ? r.svcDur : <span style={{ color: "var(--ink-faint)" }}>—</span>}
+                </div>
+                <div className="reg-cell" style={{ flex: 2, fontSize: 12 }}>{r.therName}</div>
+                <div className="reg-cell" style={{ width: 90, textAlign: "right", fontWeight: 700,
+                  color: r.svcPrice ? "var(--primary-deep)" : "var(--ink-faint)" }}>
+                  {r.svcPrice != null ? Number(r.svcPrice).toLocaleString() + '฿' : '—'}
+                </div>
+                <div className="reg-cell" style={{ width: 88 }}>
+                  <span className="pill" style={{ color: st.ink, background: st.bg, fontSize: 11, padding: "2px 7px" }}>
+                    <span className="dot" />{st.label}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+
+          {filtered.length === 0 && (
+            <div style={{ padding: "40px", textAlign: "center", color: "var(--ink-faint)" }}>
+              <Icon name="users" size={32} />
+              <div style={{ marginTop: 10 }}>ไม่พบรายการที่ตรงกับเงื่อนไข</div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 4, flexWrap: "wrap", paddingBottom: 8 }}>
+            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              disabled={page <= 1} onClick={() => setPage(1)} title="หน้าแรก">«</button>
+            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
+              <Icon name="chevL" size={13} /> ก่อนหน้า
+            </button>
+            {(() => {
+              const pages = [];
+              const delta = 2;
+              const left  = Math.max(1, page - delta);
+              const right = Math.min(totalPages, page + delta);
+              if (left > 1) { pages.push(1); if (left > 2) pages.push("…"); }
+              for (let pg = left; pg <= right; pg++) pages.push(pg);
+              if (right < totalPages) { if (right < totalPages - 1) pages.push("…"); pages.push(totalPages); }
+              return pages.map((pg, idx) =>
+                pg === "…"
+                  ? <span key={"d"+idx} style={{ padding: "0 4px", color: "var(--ink-faint)" }}>…</span>
+                  : <button key={pg}
+                      className={pg === page ? "btn-primary" : "btn-ghost"}
+                      style={{ padding: "4px 10px", fontSize: 13, minWidth: 34 }}
+                      onClick={() => setPage(pg)}>{pg}</button>
+              );
+            })()}
+            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
+              ถัดไป <Icon name="chevR" size={13} />
+            </button>
+            <button className="btn-ghost" style={{ padding: "4px 10px", fontSize: 13 }}
+              disabled={page >= totalPages} onClick={() => setPage(totalPages)} title="หน้าสุดท้าย">»</button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ── Services registry page (HOSxP health_med_operation_item) ──────────────────
 
 const SVC_PAGE_SIZE = 20;
@@ -1246,6 +1512,18 @@ function App() {
               setBms(prev => ({ ...prev, config: newConfig }));
               doLoadTherapists(newConfig);
             }}
+            userInfo={bms.userInfo}
+            therapistStatusText={therapistStatusText}
+            onDisconnect={doDisconnect}
+          />
+        )}
+
+        {/* ── Customers page ── */}
+        {activePage === "cust" && (
+          <CustomersPage
+            appts={appts}
+            therapistsData={therapistsData}
+            operationItems={operationItems}
             userInfo={bms.userInfo}
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
