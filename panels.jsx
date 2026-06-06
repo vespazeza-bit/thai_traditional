@@ -397,7 +397,7 @@ function BookingForm({ open, onClose, draft, therapists, onSave, executeQuery, s
                     const free = availableBeds.some(ab => ab.id === b.id);
                     return (
                       <option key={b.id} value={b.id} disabled={!free}>
-                        {b.name}{b.room ? ` (${b.room})` : ""}{!free ? " — ไม่ว่าง" : ""}
+                        {b.name}{b.room ? ` (ห้อง ${b.room})` : ""}{!free ? " — ไม่ว่าง" : ""}
                       </option>
                     );
                   })}
