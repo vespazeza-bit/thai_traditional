@@ -9,20 +9,44 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 }/*EDITMODE-END*/;
 
 const THEMES = {
-  herbal: { primary: "0.50 0.072 158", deep: "0.42 0.066 160", soft: "0.93 0.034 156", tint: "0.965 0.018 154", accent: "0.605 0.108 44" },
-  indigo: { primary: "0.48 0.10 268",  deep: "0.40 0.095 268", soft: "0.93 0.04 270",  tint: "0.965 0.02 270",  accent: "0.62 0.10 44" },
-  teal:   { primary: "0.52 0.09 200",  deep: "0.43 0.085 202", soft: "0.93 0.04 200",  tint: "0.965 0.02 200",  accent: "0.62 0.10 40" },
-  clay:   { primary: "0.55 0.10 38",   deep: "0.46 0.095 36",  soft: "0.93 0.045 44",  tint: "0.965 0.022 44",  accent: "0.52 0.07 158" },
+  herbal:   { primary: "0.50 0.072 158", deep: "0.42 0.066 160", soft: "0.93 0.034 156", tint: "0.965 0.018 154", accent: "0.605 0.108 44" },
+  indigo:   { primary: "0.48 0.10 268",  deep: "0.40 0.095 268", soft: "0.93 0.04 270",  tint: "0.965 0.02 270",  accent: "0.62 0.10 44" },
+  teal:     { primary: "0.52 0.09 200",  deep: "0.43 0.085 202", soft: "0.93 0.04 200",  tint: "0.965 0.02 200",  accent: "0.62 0.10 40" },
+  clay:     { primary: "0.55 0.10 38",   deep: "0.46 0.095 36",  soft: "0.93 0.045 44",  tint: "0.965 0.022 44",  accent: "0.52 0.07 158" },
+  ocean:    { primary: "0.50 0.12 236",  deep: "0.42 0.11 234",  soft: "0.93 0.045 234", tint: "0.965 0.022 234", accent: "0.60 0.11 200" },
+  hibiscus: { primary: "0.50 0.14 350",  deep: "0.42 0.13 348",  soft: "0.93 0.050 348", tint: "0.965 0.025 346", accent: "0.60 0.12 30" },
+  mocha:    { primary: "0.48 0.11 42",   deep: "0.40 0.10 40",   soft: "0.93 0.042 46",  tint: "0.965 0.020 48",  accent: "0.62 0.12 78" },
+  dark:     { primary: "0.65 0.10 158",  deep: "0.55 0.09 158",  soft: "0.28 0.07 158",  tint: "0.25 0.05 154",   accent: "0.65 0.12 44",
+    _dark: true,
+    bg: "0.17 0.022 158", surface: "0.22 0.019 158", surface2: "0.26 0.019 158", surface3: "0.30 0.018 156",
+    ink: "0.93 0.008 82", inkSoft: "0.76 0.008 80", inkFaint: "0.55 0.008 78",
+    line: "0.33 0.020 158", lineSoft: "0.29 0.018 158",
+  },
 };
+
+const DARK_VARS = ["--bg","--surface","--surface-2","--surface-3","--ink","--ink-soft","--ink-faint","--line","--line-soft"];
 
 function applyTheme(name) {
   const th = THEMES[name] || THEMES.herbal;
   const r = document.documentElement.style;
-  r.setProperty("--primary", `oklch(${th.primary})`);
+  r.setProperty("--primary",      `oklch(${th.primary})`);
   r.setProperty("--primary-deep", `oklch(${th.deep})`);
   r.setProperty("--primary-soft", `oklch(${th.soft})`);
   r.setProperty("--primary-tint", `oklch(${th.tint})`);
-  r.setProperty("--accent", `oklch(${th.accent})`);
+  r.setProperty("--accent",       `oklch(${th.accent})`);
+  if (th._dark) {
+    r.setProperty("--bg",         `oklch(${th.bg})`);
+    r.setProperty("--surface",    `oklch(${th.surface})`);
+    r.setProperty("--surface-2",  `oklch(${th.surface2})`);
+    r.setProperty("--surface-3",  `oklch(${th.surface3})`);
+    r.setProperty("--ink",        `oklch(${th.ink})`);
+    r.setProperty("--ink-soft",   `oklch(${th.inkSoft})`);
+    r.setProperty("--ink-faint",  `oklch(${th.inkFaint})`);
+    r.setProperty("--line",       `oklch(${th.line})`);
+    r.setProperty("--line-soft",  `oklch(${th.lineSoft})`);
+  } else {
+    DARK_VARS.forEach(v => r.removeProperty(v));
+  }
 }
 
 const PALETTE_KEYS = ["green", "clay", "blue", "plum", "gold"];
@@ -164,9 +188,10 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
   const settingsItems = [
-    { id: "ther", icon: "user",  label: "ผู้ให้บริการ" },
-    { id: "svc",  icon: "leaf",  label: "บริการแพทย์แผนไทย" },
-    { id: "bed",  icon: "list",  label: "เตียงบริการ" },
+    { id: "ther",   icon: "user",  label: "ผู้ให้บริการ" },
+    { id: "svc",    icon: "leaf",  label: "บริการแพทย์แผนไทย" },
+    { id: "bed",    icon: "list",  label: "เตียงบริการ" },
+    { id: "screen", icon: "sun",   label: "หน้าจอ" },
   ];
   const inSettings = settingsItems.some(i => i.id === activePage);
   const [settingsOpen, setSettingsOpen] = useState(inSettings);
@@ -2095,6 +2120,124 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
   );
 }
 
+// ── ScreenPage ────────────────────────────────────────────────────────────────
+function ScreenPage({ t, setTweak, userInfo, therapistStatusText, onDisconnect }) {
+  const THEME_OPTIONS = [
+    { id: "herbal",   label: "สมุนไพร",   sub: "เขียวธรรมชาติ", primary: "#3d7a5b", bg: "#f4efe6", accent: "#cf6b43" },
+    { id: "ocean",    label: "มหาสมุทร",  sub: "ฟ้าสดใส",       primary: "#2860b0", bg: "#eff4fc", accent: "#0ea5c4" },
+    { id: "hibiscus", label: "ดอกชบา",    sub: "ชมพูอบอุ่น",     primary: "#a0305a", bg: "#fdf0f5", accent: "#e05888" },
+    { id: "mocha",    label: "กาแฟ",      sub: "น้ำตาลอบอุ่น",   primary: "#7c4f2a", bg: "#f5efe8", accent: "#c9843e" },
+    { id: "dark",     label: "กลางคืน",   sub: "โหมดมืด",       primary: "#4ade80", bg: "#1e2d26", accent: "#fb923c" },
+    { id: "indigo",   label: "อินดิโก",   sub: "ม่วงสดใส",       primary: "#4338ca", bg: "#f5f3ff", accent: "#f59e0b" },
+    { id: "teal",     label: "ทีล",       sub: "เขียวน้ำทะเล",   primary: "#0d9488", bg: "#f0fdfa", accent: "#f97316" },
+    { id: "clay",     label: "ดินเผา",    sub: "ส้มแดงอบอุ่น",   primary: "#c2410c", bg: "#fff7ed", accent: "#16a34a" },
+  ];
+  const FONT_OPTIONS = [
+    { id: "Sarabun",           label: "Sarabun",          sub: "คลาสสิก" },
+    { id: "Prompt",            label: "Prompt",            sub: "ทันสมัย" },
+    { id: "Noto Sans Thai",    label: "Noto Sans Thai",    sub: "อ่านง่าย" },
+    { id: "IBM Plex Sans Thai",label: "IBM Plex Sans Thai",sub: "เทคนิค" },
+  ];
+  const DENSITY_OPTIONS = [
+    { id: "compact", label: "กระชับ", icon: "▤", desc: "46px / ช่อง" },
+    { id: "regular", label: "ปกติ",   icon: "▣", desc: "58px / ช่อง" },
+    { id: "comfy",   label: "โปร่ง",  icon: "□", desc: "70px / ช่อง" },
+  ];
+  const curTheme   = t.theme    || "herbal";
+  const curFont    = t.fontFamily|| "Sarabun";
+  const curDensity = t.density  || "regular";
+
+  return (
+    <>
+      <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
+        <div>
+          <div className="page-title">ตั้งค่าหน้าจอ</div>
+          <div className="page-sub">ปรับธีมสี · ฟอนต์ · และขนาดการแสดงผล</div>
+        </div>
+      </TopBar>
+
+      <div className="svc-content" style={{ gap: 28, maxWidth: 820 }}>
+
+        {/* ── Themes ── */}
+        <section>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 14 }}>🎨 ธีมสี</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            {THEME_OPTIONS.map(th => {
+              const active = curTheme === th.id;
+              return (
+                <button key={th.id} onClick={() => setTweak("theme", th.id)} style={{
+                  border: `2px solid ${active ? "var(--primary)" : "var(--line)"}`,
+                  borderRadius: 12, overflow: "hidden", cursor: "pointer", background: "none", padding: 0,
+                  boxShadow: active ? "0 0 0 3px var(--primary-soft)" : "0 1px 3px rgba(0,0,0,.06)",
+                  transition: "all .15s",
+                }}>
+                  <div style={{ height: 54, background: th.bg, display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 7, background: th.primary, boxShadow: "0 2px 6px rgba(0,0,0,.25)" }} />
+                    <div style={{ width: 13, height: 13, borderRadius: 4, background: th.accent }} />
+                  </div>
+                  <div style={{ padding: "8px 6px 10px", background: "var(--surface)", textAlign: "center" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: active ? "var(--primary)" : "var(--ink)" }}>{th.label}</div>
+                    <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>{th.sub}</div>
+                    {active && <div style={{ fontSize: 10, color: "var(--primary)", marginTop: 3, fontWeight: 600 }}>● ใช้งานอยู่</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Fonts ── */}
+        <section>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 14 }}>🔤 ฟอนต์</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            {FONT_OPTIONS.map(f => {
+              const active = curFont === f.id;
+              return (
+                <button key={f.id} onClick={() => setTweak("fontFamily", f.id)} style={{
+                  border: `2px solid ${active ? "var(--primary)" : "var(--line)"}`,
+                  borderRadius: 10, padding: "14px 8px",
+                  background: active ? "var(--primary-tint)" : "var(--surface)",
+                  boxShadow: active ? "0 0 0 3px var(--primary-soft)" : "0 1px 3px rgba(0,0,0,.06)",
+                  cursor: "pointer", transition: "all .15s", textAlign: "center",
+                }}>
+                  <div style={{ fontFamily: `"${f.id}", sans-serif`, fontSize: 22, fontWeight: 700,
+                    color: active ? "var(--primary)" : "var(--ink)", marginBottom: 5 }}>กขค</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: active ? "var(--primary)" : "var(--ink-soft)" }}>{f.label}</div>
+                  <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>{f.sub}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Density ── */}
+        <section>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 14 }}>📐 ขนาดตาราง</div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {DENSITY_OPTIONS.map(d => {
+              const active = curDensity === d.id;
+              return (
+                <button key={d.id} onClick={() => setTweak("density", d.id)} style={{
+                  flex: 1, border: `2px solid ${active ? "var(--primary)" : "var(--line)"}`,
+                  borderRadius: 10, padding: "16px 8px",
+                  background: active ? "var(--primary-tint)" : "var(--surface)",
+                  boxShadow: active ? "0 0 0 3px var(--primary-soft)" : "0 1px 3px rgba(0,0,0,.06)",
+                  cursor: "pointer", transition: "all .15s", textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 28, marginBottom: 6 }}>{d.icon}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: active ? "var(--primary)" : "var(--ink)" }}>{d.label}</div>
+                  <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 3 }}>{d.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+      </div>
+    </>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 function App() {
@@ -2566,7 +2709,7 @@ function App() {
         <TweaksPanel>
           <TweakSection label="ธีมสี" />
           <TweakRadio label="โทนหลัก" value={t.theme}
-            options={["herbal", "indigo", "teal", "clay"]} onChange={v => setTweak("theme", v)} />
+            options={["herbal", "ocean", "hibiscus", "mocha", "dark", "indigo", "teal", "clay"]} onChange={v => setTweak("theme", v)} />
         </TweaksPanel>
       </>
     );
@@ -2734,6 +2877,17 @@ function App() {
           />
         )}
 
+        {/* ── Screen settings page ── */}
+        {activePage === "screen" && (
+          <ScreenPage
+            t={t}
+            setTweak={setTweak}
+            userInfo={bms.userInfo}
+            therapistStatusText={therapistStatusText}
+            onDisconnect={doDisconnect}
+          />
+        )}
+
         {/* ── Customers page ── */}
         {activePage === "cust" && (
           <CustomersPage
@@ -2861,7 +3015,7 @@ function App() {
       <TweaksPanel>
         <TweakSection label="ธีมสี" />
         <TweakRadio label="โทนหลัก" value={t.theme}
-          options={["herbal", "indigo", "teal", "clay"]} onChange={v => setTweak("theme", v)} />
+          options={["herbal", "ocean", "hibiscus", "mocha", "dark", "indigo", "teal", "clay"]} onChange={v => setTweak("theme", v)} />
         <TweakSection label="การแสดงผล" />
         <TweakRadio label="ความหนาแน่น" value={t.density}
           options={["compact", "regular", "comfy"]} onChange={v => setTweak("density", v)} />

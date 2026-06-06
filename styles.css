@@ -51,6 +51,61 @@
 [data-density="compact"] { --row-h: 46px; --col-min: 150px; }
 [data-density="comfy"]   { --row-h: 70px; --col-min: 192px; }
 
+/* ── Theme: Ocean (ฟ้ามหาสมุทร) ── */
+[data-theme="ocean"] {
+  --bg:        oklch(0.972 0.010 234); --surface: oklch(0.997 0.004 234);
+  --surface-2: oklch(0.950 0.014 232); --surface-3: oklch(0.930 0.018 230);
+  --ink: oklch(0.285 0.020 234); --ink-soft: oklch(0.475 0.016 232); --ink-faint: oklch(0.62 0.012 230);
+  --line: oklch(0.895 0.014 232); --line-soft: oklch(0.930 0.011 234);
+  --primary: oklch(0.50 0.12 236); --primary-deep: oklch(0.42 0.11 234);
+  --primary-soft: oklch(0.93 0.045 234); --primary-tint: oklch(0.965 0.022 234);
+  --accent: oklch(0.60 0.11 200); --accent-soft: oklch(0.94 0.04 200);
+}
+
+/* ── Theme: Hibiscus (ดอกชบา) ── */
+[data-theme="hibiscus"] {
+  --bg:        oklch(0.972 0.010 350); --surface: oklch(0.997 0.004 350);
+  --surface-2: oklch(0.950 0.014 348); --surface-3: oklch(0.930 0.018 346);
+  --ink: oklch(0.285 0.018 348); --ink-soft: oklch(0.475 0.014 346); --ink-faint: oklch(0.62 0.012 344);
+  --line: oklch(0.895 0.013 346); --line-soft: oklch(0.930 0.011 348);
+  --primary: oklch(0.50 0.14 350); --primary-deep: oklch(0.42 0.13 348);
+  --primary-soft: oklch(0.93 0.050 348); --primary-tint: oklch(0.965 0.025 346);
+  --accent: oklch(0.60 0.12 30); --accent-soft: oklch(0.94 0.05 30);
+}
+
+/* ── Theme: Mocha (กาแฟ) ── */
+[data-theme="mocha"] {
+  --bg:        oklch(0.968 0.020 55); --surface: oklch(0.995 0.009 55);
+  --surface-2: oklch(0.948 0.024 53); --surface-3: oklch(0.928 0.028 51);
+  --ink: oklch(0.285 0.028 50); --ink-soft: oklch(0.475 0.022 52); --ink-faint: oklch(0.62 0.016 55);
+  --line: oklch(0.895 0.016 53); --line-soft: oklch(0.930 0.014 55);
+  --primary: oklch(0.48 0.11 42); --primary-deep: oklch(0.40 0.10 40);
+  --primary-soft: oklch(0.93 0.042 46); --primary-tint: oklch(0.965 0.020 48);
+  --accent: oklch(0.62 0.12 78); --accent-soft: oklch(0.94 0.05 78);
+}
+
+/* ── Theme: Dark (กลางคืน) ── */
+[data-theme="dark"] {
+  --bg:        oklch(0.17 0.022 158); --surface: oklch(0.22 0.019 158);
+  --surface-2: oklch(0.26 0.019 158); --surface-3: oklch(0.30 0.018 156);
+  --ink: oklch(0.93 0.008 82); --ink-soft: oklch(0.76 0.008 80); --ink-faint: oklch(0.55 0.008 78);
+  --line: oklch(0.33 0.020 158); --line-soft: oklch(0.29 0.018 158);
+  --primary: oklch(0.65 0.10 158); --primary-deep: oklch(0.55 0.09 158);
+  --primary-soft: oklch(0.28 0.07 158); --primary-tint: oklch(0.25 0.05 154);
+  --accent: oklch(0.65 0.12 44); --accent-soft: oklch(0.30 0.07 44);
+  --st-booked-ink: oklch(0.75 0.09 250); --st-booked-bg: oklch(0.28 0.05 250);
+  --st-confirm-ink: oklch(0.75 0.09 158); --st-confirm-bg: oklch(0.28 0.05 156);
+  --st-arrived-ink: oklch(0.78 0.10 74); --st-arrived-bg: oklch(0.28 0.05 80);
+  --st-service-ink: oklch(0.75 0.11 44); --st-service-bg: oklch(0.28 0.06 48);
+  --st-done-ink: oklch(0.72 0.015 78); --st-done-bg: oklch(0.26 0.01 80);
+  --st-cancel-ink: oklch(0.72 0.10 22); --st-cancel-bg: oklch(0.28 0.05 24);
+}
+
+/* ── Font variants ── */
+[data-font="prompt"] { --font: "Prompt", system-ui, sans-serif; }
+[data-font="noto"]   { --font: "Noto Sans Thai", system-ui, sans-serif; }
+[data-font="ibm"]    { --font: "IBM Plex Sans Thai", system-ui, sans-serif; }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {
