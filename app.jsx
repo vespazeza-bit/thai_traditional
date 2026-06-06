@@ -2547,8 +2547,12 @@ function App() {
     const svcObj  = svc(appt.serviceId);
     const therObj = therapistsData.find(t => t.id === appt.therapistId) || ther(appt.therapistId);
 
+    // normalize: ใช้ _displayQ เป็น fallback สำหรับนัดเก่าที่ไม่มี queueNo
+    const resolvedQNo = appt._displayQ || appt.queueNo || 0;
+
     const entry = {
       ...appt,
+      queueNo: resolvedQNo,  // เขียนทับให้แน่ใจว่า queueNo ถูกต้องเสมอ
       calledAt: Date.now(),
       bedLabel,
       svcName:  svcObj?.name  || appt.serviceId || "",
@@ -2563,29 +2567,30 @@ function App() {
     });
 
     speakQueue(
-      fmtQueueNo(appt.queueNo || 0),
+      fmtQueueNo(resolvedQNo),
       appt.customer || "",
       bedLabel,
       null,
       bedObj?.room || null,
       bedObj?.name || null
     );
-    showToast(`🔔 เรียกคิว ${fmtQueueNo(appt.queueNo || 0)} — ${appt.customer || "ผู้รับบริการ"}`);
+    showToast(`🔔 เรียกคิว ${fmtQueueNo(resolvedQNo)} — ${appt.customer || "ผู้รับบริการ"}`);
   };
 
   const handleRepeatCall = (queue) => {
     if (!queue) return;
     const bedObj = beds.find(b => b.id === queue.bedId);
     const bedLabel = queue.bedLabel || (bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : null);
+    const resolvedQNo = queue._displayQ || queue.queueNo || 0;
     speakQueue(
-      fmtQueueNo(queue.queueNo || 0),
+      fmtQueueNo(resolvedQNo),
       queue.customer || "",
       bedLabel,
       null,
       bedObj?.room || null,
       bedObj?.name || null
     );
-    showToast(`🔁 เรียกซ้ำ ${fmtQueueNo(queue.queueNo || 0)}`);
+    showToast(`🔁 เรียกซ้ำ ${fmtQueueNo(resolvedQNo)}`);
   };
 
   // ── Login gate ────────────────────────────────────────────────────────────
