@@ -220,7 +220,6 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
       ))}
 
       {/* ── ตั้งค่า (expandable) ── */}
-      <div className="nav-section">ตั้งค่า</div>
       <button
         className={"nav-item" + (inSettings && collapsed ? " active" : "")}
         style={{ justifyContent: "space-between" }}
