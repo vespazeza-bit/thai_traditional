@@ -1367,7 +1367,7 @@ function Stat({ icon, val, lab, ink, bg }) {
 
 // ── Report Page ──────────────────────────────────────────────────────────────
 
-function ReportPage({ appts, therapistsData, activeServices, userInfo, therapistStatusText, onDisconnect }) {
+function ReportPage({ appts, therapistsData, activeServices, userInfo, therapistStatusText, onDisconnect, serviceTherFees }) {
   const [tab, setTab] = useState("live");
   const [nowMin, setNowMin] = useState(() => { const d = new Date(); return d.getHours()*60+d.getMinutes(); });
   const [dailyMode, setDailyMode] = useState("count");
@@ -1421,7 +1421,8 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
     const todayT   = todayActive.filter(a => a.therapistId === t.id);
     const done     = all.filter(a => a.status==="done");
     const totalMins = all.reduce((s,a)=>s+(svc(a.serviceId)?.dur||60),0);
-    const income   = done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0);
+    const income        = done.reduce((s,a)=>s+(svc(a.serviceId)?.price||0),0);
+    const therFeeIncome = done.reduce((s,a)=>s+((serviceTherFees||{})[a.serviceId]||0),0);
     const availMins = (CLOSE_MIN-OPEN_MIN)*(allEntries.length||1);
     const utilPct  = availMins>0 ? Math.min(100, Math.round(totalMins/availMins*100)) : 0;
     const current  = todayT.find(a => a.status==="service" && a.start<=nowMin && (a.start+(svc(a.serviceId)?.dur||60))>nowMin);
@@ -1430,7 +1431,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
     const todayTotalMins = CLOSE_MIN - OPEN_MIN;
     const todayFreeSlots = Math.max(0, Math.floor((todayTotalMins - todayUsedMins) / SLOT));
     const todayUtilPct   = Math.min(100, Math.round(todayUsedMins / todayTotalMins * 100));
-    return {...t, count:all.length, todayCount:todayT.length, totalMins, income, utilPct, current, nextAppt, todayFreeSlots, todayUtilPct};
+    return {...t, count:all.length, todayCount:todayT.length, totalMins, income, therFeeIncome, utilPct, current, nextAppt, todayFreeSlots, todayUtilPct};
   });
   const todayMaxQ = Math.max(1, ...therRows.map(r=>r.todayCount));
 
@@ -1839,7 +1840,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                   <div className="reg-cell" style={{flex:1}}>ผู้ให้บริการ</div>
                   <div className="reg-cell" style={{width:72,textAlign:"right"}}>คิวรวม</div>
                   <div className="reg-cell" style={{width:80,textAlign:"right"}}>ชั่วโมง</div>
-                  <div className="reg-cell" style={{width:110,textAlign:"right"}}>รายได้</div>
+                  <div className="reg-cell" style={{width:120,textAlign:"right"}}>รายได้ผู้ให้บริการ</div>
                   <div className="reg-cell" style={{width:130}}>การใช้เวลา</div>
                 </div>
                 <div className="reg-body">
@@ -1851,7 +1852,11 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                       </div>
                       <div className="reg-cell" style={{width:72,textAlign:"right",fontWeight:700,color:"var(--primary)"}}>{t.count}</div>
                       <div className="reg-cell" style={{width:80,textAlign:"right"}}>{(t.totalMins/60).toFixed(1)}</div>
-                      <div className="reg-cell" style={{width:110,textAlign:"right"}}>{t.income.toLocaleString()} ฿</div>
+                      <div className="reg-cell" style={{width:120,textAlign:"right"}}>
+                        {t.therFeeIncome > 0
+                          ? <span style={{fontWeight:700,color:"oklch(0.38 0.12 165)"}}>{t.therFeeIncome.toLocaleString()} ฿</span>
+                          : <span style={{color:"var(--ink-faint)",fontSize:12}}>ยังไม่ตั้งค่า</span>}
+                      </div>
                       <div className="reg-cell" style={{width:130,display:"flex",alignItems:"center",gap:6}}>
                         <BarH pct={t.utilPct} h={6}/><span style={{fontSize:11,color:"var(--ink-faint)",whiteSpace:"nowrap"}}>{t.utilPct}%</span>
                       </div>
@@ -2403,6 +2408,7 @@ function App() {
             userInfo={bms.userInfo}
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
+            serviceTherFees={serviceTherFees}
           />
         )}
 
