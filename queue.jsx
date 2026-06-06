@@ -184,7 +184,7 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
     <>
       <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
         <div>
-          <div className="page-title">เรียกคิว & ติดตามสถานะ</div>
+          <div className="page-title">เรียกคิวรับบริการแพทย์แผนไทย</div>
           <div className="page-sub">บอร์ดปฏิบัติงานรายวัน · วันนี้ {todayList.length} คิว</div>
         </div>
         <button className="btn-ghost" onClick={openDisplayWindow}
