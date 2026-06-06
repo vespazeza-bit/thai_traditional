@@ -181,12 +181,12 @@ function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
 function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   const nav = [
     { id: "sched",  icon: "calendar", label: "ตารางนัด" },
-    { id: "ther",   icon: "user",     label: "ผู้ให้บริการ" },
+    { id: "cust",   icon: "users",    label: "ทะเบียนผู้รับบริการ" },
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
   const settingsItems = [
-    { id: "cust", icon: "users", label: "ทะเบียนผู้รับบริการ" },
-    { id: "svc",  icon: "leaf",  label: "บริการแพทย์แผนไทย" },
+    { id: "ther", icon: "user", label: "ผู้ให้บริการ" },
+    { id: "svc",  icon: "leaf", label: "บริการแพทย์แผนไทย" },
   ];
   const inSettings = settingsItems.some(i => i.id === activePage);
   const [settingsOpen, setSettingsOpen] = useState(inSettings);
@@ -1364,7 +1364,11 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
     const utilPct  = availMins>0 ? Math.min(100, Math.round(totalMins/availMins*100)) : 0;
     const current  = todayT.find(a => a.status==="service" && a.start<=nowMin && (a.start+(svc(a.serviceId)?.dur||60))>nowMin);
     const nextAppt = todayT.filter(a => ["booked","confirmed","arrived"].includes(a.status)&&a.start>nowMin).sort((a,b)=>a.start-b.start)[0];
-    return {...t, count:all.length, todayCount:todayT.length, totalMins, income, utilPct, current, nextAppt};
+    const todayUsedMins  = todayT.reduce((s,a)=>s+(svc(a.serviceId)?.dur||60),0);
+    const todayTotalMins = CLOSE_MIN - OPEN_MIN;
+    const todayFreeSlots = Math.max(0, Math.floor((todayTotalMins - todayUsedMins) / SLOT));
+    const todayUtilPct   = Math.min(100, Math.round(todayUsedMins / todayTotalMins * 100));
+    return {...t, count:all.length, todayCount:todayT.length, totalMins, income, utilPct, current, nextAppt, todayFreeSlots, todayUtilPct};
   });
   const todayMaxQ = Math.max(1, ...therRows.map(r=>r.todayCount));
 
@@ -1725,7 +1729,49 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
 
           {/* Therapist workload table */}
           <Card title="รายงานภาระงานผู้ให้บริการแพทย์แผนไทย">
-            {therRows.length===0 ? <Empty msg="ยังไม่มีข้อมูลผู้ให้บริการ"/> : (
+            {therRows.length===0 ? <Empty msg="ยังไม่มีข้อมูลผู้ให้บริการ"/> : (<>
+
+              {/* ── Today cards ── */}
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:12,fontWeight:600,color:"var(--ink-faint)",marginBottom:8,letterSpacing:.3}}>
+                  ภาระงานวันนี้ — {new Date().toLocaleDateString("th-TH",{weekday:"long",day:"numeric",month:"long"})}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+                  {therRows.map(t => {
+                    const busy = t.todayUtilPct;
+                    const barClr = busy>=80 ? "oklch(0.52 0.18 27)" : busy>=50 ? "oklch(0.62 0.15 75)" : "oklch(0.44 0.09 158)";
+                    const freeClr = t.todayFreeSlots===0 ? "oklch(0.52 0.18 27)" : t.todayFreeSlots<=4 ? "oklch(0.62 0.15 75)" : "oklch(0.38 0.12 165)";
+                    return (
+                      <div key={t.id} style={{border:"1px solid var(--line)",borderRadius:"var(--r-sm)",padding:"10px 12px",background:"var(--surface-2)"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}>
+                          <Avatar name={t.name} color={t.color} size={26}/>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontWeight:600,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.fullname||t.name}</div>
+                            <div style={{fontSize:10,color:"var(--ink-faint)"}}>{t.spec||"ผู้ให้บริการ"}</div>
+                          </div>
+                        </div>
+                        <div style={{display:"flex",gap:6,marginBottom:9}}>
+                          <div style={{flex:1,textAlign:"center",background:"var(--surface)",borderRadius:6,padding:"7px 4px"}}>
+                            <div style={{fontSize:22,fontWeight:800,color:barClr,lineHeight:1}}>{t.todayCount}</div>
+                            <div style={{fontSize:10,color:"var(--ink-faint)",marginTop:3}}>คิวงานวันนี้</div>
+                          </div>
+                          <div style={{flex:1,textAlign:"center",background:"var(--surface)",borderRadius:6,padding:"7px 4px"}}>
+                            <div style={{fontSize:22,fontWeight:800,color:freeClr,lineHeight:1}}>{t.todayFreeSlots}</div>
+                            <div style={{fontSize:10,color:"var(--ink-faint)",marginTop:3}}>ช่องว่าง (30น.)</div>
+                          </div>
+                        </div>
+                        <div style={{height:5,borderRadius:5,background:"var(--line)",overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${busy}%`,background:barClr,borderRadius:5,transition:"width .4s"}}/>
+                        </div>
+                        <div style={{fontSize:10,color:"var(--ink-faint)",marginTop:4,textAlign:"right"}}>ใช้เวลาวันนี้ {busy}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Historical table ── */}
+              <div style={{fontSize:12,fontWeight:600,color:"var(--ink-faint)",marginBottom:8,letterSpacing:.3}}>ข้อมูลสะสมทั้งหมด</div>
               <div className="reg-table">
                 <div className="reg-head">
                   <div className="reg-cell" style={{flex:1}}>ผู้ให้บริการ</div>
@@ -1751,7 +1797,7 @@ function ReportPage({ appts, therapistsData, activeServices, userInfo, therapist
                   ))}
                 </div>
               </div>
-            )}
+            </>)}
           </Card>
 
           {/* 2-col: Popular times + Appointment quality */}
