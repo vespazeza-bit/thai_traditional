@@ -24,15 +24,16 @@ function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedNam
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'th-TH';
   utterance.rate = 0.7;
-  utterance.pitch = 1.1;
+  utterance.pitch = 1.75; // เพิ่ม pitch ให้ฟังดูสูงขึ้น (ชดเชยกรณีไม่มีเสียงหญิง)
   utterance.volume = 1;
 
   function pickVoice() {
     const all = window.speechSynthesis.getVoices();
     const th  = all.filter(v => v.lang === 'th-TH' || v.lang === 'th');
     if (!th.length) return;
-    // thipsuda = Windows female, kanya = macOS female; fallback th[0] (มักเป็นหญิงใน Windows)
-    const female = th.find(v => /thipsuda|kanya|pattara|female|woman|หญิง/i.test(v.name))
+    // เสียงหญิง: thipsuda (Windows), kanya (macOS) — ถ้าไม่มีให้หลีกเลี่ยง pattara/niwat (ชาย)
+    const female = th.find(v => /thipsuda|kanya|female|woman|หญิง/i.test(v.name))
+      || th.find(v => !/pattara|niwat|male/i.test(v.name))
       || th[0];
     utterance.voice = female;
   }
