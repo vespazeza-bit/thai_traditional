@@ -182,6 +182,7 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   const nav = [
     { id: "sched",  icon: "calendar", label: "ตารางนัด" },
     { id: "cust",   icon: "users",    label: "ทะเบียนผู้รับบริการ" },
+    { id: "queue",  icon: "bell",     label: "เรียกคิว" },
     { id: "report", icon: "chart",    label: "รายงาน" },
   ];
   const settingsItems = [
@@ -2179,6 +2180,10 @@ function App() {
     try { return JSON.parse(localStorage.getItem('thai_beds') || '[]'); } catch { return []; }
   });
 
+  // ── Queue call state ──────────────────────────────────────────────────────────
+  const [currentQueue, setCurrentQueue] = useState(null);
+  const [queueHistory, setQueueHistory] = useState([]);
+
   // ── Effects (must all be before early return) ─────────────────────────────
   useEffect(() => { applyTheme(t.theme); }, [t.theme]);
   useEffect(() => { document.documentElement.dataset.density = t.density; }, [t.density]);
@@ -2532,6 +2537,53 @@ function App() {
     showToast(bed.active === false ? `เปิดเตียง "${bed.name}" แล้ว` : `ปิดเตียง "${bed.name}" แล้ว`);
   };
 
+  // ── Queue handlers ─────────────────────────────────────────────────────────
+  const handleCallQueue = (appt) => {
+    // Mark as arrived
+    setAppts(p => ({ ...p, [key]: (p[key] || []).map(a => a.id === appt.id ? { ...a, status: "arrived" } : a) }));
+
+    const bedObj = beds.find(b => b.id === appt.bedId);
+    const bedLabel = bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : null;
+    const svcObj  = svc(appt.serviceId);
+    const therObj = therapistsData.find(t => t.id === appt.therapistId) || ther(appt.therapistId);
+
+    const entry = {
+      ...appt,
+      calledAt: Date.now(),
+      bedLabel,
+      svcName:  svcObj?.name  || appt.serviceId || "",
+      therName: therObj?.name || therObj?.fullname || "",
+    };
+
+    setCurrentQueue(entry);
+    setQueueHistory(prev => {
+      const next = [entry, ...prev.filter(q => q.id !== appt.id)].slice(0, 8);
+      broadcastQueue(entry, next);
+      return next;
+    });
+
+    speakQueue(
+      fmtQueueNo(appt.queueNo || 0),
+      appt.customer || "",
+      bedLabel,
+      svcObj?.name
+    );
+    showToast(`🔔 เรียกคิว ${fmtQueueNo(appt.queueNo || 0)} — ${appt.customer || "ผู้รับบริการ"}`);
+  };
+
+  const handleRepeatCall = (queue) => {
+    if (!queue) return;
+    const bedObj = beds.find(b => b.id === queue.bedId);
+    const bedLabel = bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : queue.bedLabel || null;
+    speakQueue(
+      fmtQueueNo(queue.queueNo || 0),
+      queue.customer || "",
+      bedLabel,
+      queue.svcName || svc(queue.serviceId)?.name
+    );
+    showToast(`🔁 เรียกซ้ำ ${fmtQueueNo(queue.queueNo || 0)}`);
+  };
+
   // ── Login gate ────────────────────────────────────────────────────────────
   if (!bms.connected) {
     return (
@@ -2592,10 +2644,13 @@ function App() {
       showToast("บันทึกการแก้ไขเรียบร้อยแล้ว");
     } else {
       const id = `a${key}_new_${Date.now()}`;
-      const saved = { ...data, id };
+      const todayList = appts[key] || [];
+      const maxQNo = todayList.reduce((mx, a) => Math.max(mx, a.queueNo || 0), 0);
+      const queueNo = maxQNo + 1;
+      const saved = { ...data, id, queueNo };
       setAppts(p => ({ ...p, [key]: [...(p[key] || []), saved] }));
       showToast("จองนัดเรียบร้อยแล้ว");
-      setPrintAppt({ appt: saved, date, queueNo: (list.length + 1) });
+      setPrintAppt({ appt: saved, date, queueNo });
     }
     setBooking(null);
   };
@@ -2630,6 +2685,25 @@ function App() {
               setBooking({ therapistId, start: OPEN_MIN });
               setActivePage("sched");
             }}
+          />
+        )}
+
+        {/* ── Queue page ── */}
+        {activePage === "queue" && (
+          <QueuePage
+            appts={appts}
+            therapistsData={therapistsData}
+            activeServices={activeServices}
+            beds={beds}
+            userInfo={bms.userInfo}
+            therapistStatusText={therapistStatusText}
+            onDisconnect={doDisconnect}
+            onUpdateStatus={setApptStatus}
+            dateKey={key}
+            currentQueue={currentQueue}
+            queueHistory={queueHistory}
+            onCallQueue={handleCallQueue}
+            onRepeatCall={handleRepeatCall}
           />
         )}
 
