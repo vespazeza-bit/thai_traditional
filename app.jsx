@@ -104,30 +104,8 @@ function LoginScreen({ onConnect, loading, error }) {
     <div className="login-wrap">
       <div className="login-card fade-up">
         <div className="login-logo">
-          <div className="brand-mark" style={{ width: 64, height: 64, borderRadius: 20, background: "linear-gradient(135deg, oklch(0.38 0.07 162), oklch(0.52 0.08 148) 55%, oklch(0.68 0.14 85))", boxShadow: "0 4px 20px oklch(0.38 0.07 162 / .4)" }}>
-            <svg width="38" height="38" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Clock ring */}
-              <circle cx="20" cy="24" r="11" stroke="rgba(255,255,255,0.92)" strokeWidth="2"/>
-              {/* Tick marks */}
-              {[0,60,120,180,240,300].map(deg => {
-                const r = (Math.PI/180)*deg;
-                const x1 = 20 + 9.2*Math.sin(r), y1 = 24 - 9.2*Math.cos(r);
-                const x2 = 20 + 11*Math.sin(r),  y2 = 24 - 11*Math.cos(r);
-                return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fff" strokeWidth="1.5" strokeLinecap="round"/>;
-              })}
-              {/* Hour hand → 10 o'clock */}
-              <line x1="20" y1="24" x2="14.5" y2="18.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
-              {/* Minute hand → 12 */}
-              <line x1="20" y1="24" x2="20" y2="15" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
-              {/* Center dot */}
-              <circle cx="20" cy="24" r="1.5" fill="#fff"/>
-              {/* Leaf left */}
-              <path d="M20 13C19.5 11.5 17.5 9.5 15.5 9c-.5 2 .5 4.5 4.5 4z" fill="#fff" fillOpacity=".9"/>
-              {/* Leaf right */}
-              <path d="M20 13C20.5 11.5 22.5 9.5 24.5 9c.5 2-.5 4.5-4.5 4z" fill="#fff" fillOpacity=".75"/>
-              {/* Stem */}
-              <line x1="20" y1="13" x2="20" y2="13" stroke="#fff" strokeWidth="1.6" strokeLinecap="round"/>
-            </svg>
+          <div className="brand-mark" style={{ width: 64, height: 64, borderRadius: 20, overflow: "hidden", background: "none", boxShadow: "0 4px 20px rgba(0,0,0,.25)" }}>
+            <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           </div>
         </div>
         <div style={{ textAlign: "center" }}>
@@ -198,21 +176,8 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
-        <div className="brand-mark" style={{ background: "linear-gradient(135deg, oklch(0.38 0.07 162), oklch(0.52 0.08 148) 55%, oklch(0.68 0.14 85))" }}>
-          <svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="20" cy="24" r="11" stroke="rgba(255,255,255,0.9)" strokeWidth="2"/>
-            {[0,90,180,270].map(deg => {
-              const r = (Math.PI/180)*deg;
-              const x1 = 20 + 9.2*Math.sin(r), y1 = 24 - 9.2*Math.cos(r);
-              const x2 = 20 + 11*Math.sin(r),  y2 = 24 - 11*Math.cos(r);
-              return <line key={deg} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>;
-            })}
-            <line x1="20" y1="24" x2="14.5" y2="18.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
-            <line x1="20" y1="24" x2="20" y2="15" stroke="#fff" strokeWidth="2.2" strokeLinecap="round"/>
-            <circle cx="20" cy="24" r="1.5" fill="#fff"/>
-            <path d="M20 13C19.5 11.5 17.5 9.5 15.5 9c-.5 2 .5 4.5 4.5 4z" fill="#fff" fillOpacity=".9"/>
-            <path d="M20 13C20.5 11.5 22.5 9.5 24.5 9c.5 2-.5 4.5-4.5 4z" fill="#fff" fillOpacity=".75"/>
-          </svg>
+        <div className="brand-mark" style={{ background: "none", overflow: "hidden" }}>
+          <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         </div>
         <div className="brand-text">
           <div className="brand-name">ThaiMed Scheduler</div>

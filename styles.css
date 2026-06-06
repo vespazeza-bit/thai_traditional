@@ -80,14 +80,8 @@ input, select, textarea { font-family: inherit; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 22px; }
 .brand-mark {
   width: 40px; height: 40px; border-radius: 12px; flex: none;
-  background: linear-gradient(145deg, oklch(0.52 0.08 158), oklch(0.38 0.07 162));
-  box-shadow: 0 2px 8px oklch(0.38 0.07 162 / .35);
-  display: grid; place-items: center; color: #fff; box-shadow: var(--shadow-sm);
-  position: relative;
-}
-.brand-mark::after {
-  content: ""; position: absolute; inset: 6px; border: 1.5px solid oklch(1 0 0 / .55);
-  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .brand-name { font-weight: 600; font-size: 15.5px; line-height: 1.2; white-space: nowrap; }
 .brand-text { min-width: 0; }
