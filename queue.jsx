@@ -19,7 +19,7 @@ function speakQueue(queueNo, patientName, bedLabel, serviceName, bedRoom, bedNam
   }
 
   // 1. ResponsiveVoice — เสียงหญิงภาษาไทยจาก library (ดีที่สุด)
-  if (window.responsiveVoice && window.responsiveVoice.voiceSupport()) {
+  if (window.responsiveVoice) {
     window.responsiveVoice.cancel();
     window.responsiveVoice.speak(text, "Thai Female", { rate: 0.85, volume: 1 });
     return;
