@@ -987,28 +987,37 @@ function ServicesPage({ operationItems, operationStatus, operationErrMsg,
               <div className="reg-head">
                 <div className="reg-cell reg-num">#</div>
                 <div className="reg-cell" style={{ flex: 2 }}>ชื่อบริการ / หัตถการ</div>
-                <div className="reg-cell" style={{ width: 110 }}>ราคา (บาท)</div>
-                <div className="reg-cell" style={{ width: 110 }}>เวลา (นาที)</div>
+                <div className="reg-cell" style={{ width: 120, textAlign: "right" }}>ราคา (บาท)</div>
+                <div className="reg-cell" style={{ width: 130, textAlign: "right" }}>ค่าบริการผู้ให้บริการ</div>
+                <div className="reg-cell" style={{ width: 100, textAlign: "center" }}>เวลา (นาที)</div>
                 <div className="reg-cell" style={{ width: 90 }}>สถานะ</div>
                 <div className="reg-cell reg-action"></div>
               </div>
               {pageItems.map((it, i) => {
                 const active = it.isActive !== false;
                 const globalIndex = (page - 1) * pageSize + i + 1;
+                const therFee = serviceTherFees?.[it.id];
                 return (
                   <div key={it.id} className="reg-row" onClick={() => setSelected(it)}>
                     <div className="reg-cell reg-num">{globalIndex}</div>
                     <div className="reg-cell" style={{ flex: 2, fontWeight: 600, fontSize: 14 }}>
                       {it.name}
                     </div>
-                    <div className="reg-cell" style={{ width: 110 }}>
+                    <div className="reg-cell" style={{ width: 120, textAlign: "right" }}>
                       {it.price
                         ? <span style={{ fontWeight: 700, color: "var(--primary-deep)" }}>
-                            {Number(it.price).toLocaleString()}
+                            {Number(it.price).toLocaleString()} ฿
                           </span>
                         : <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>—</span>}
                     </div>
-                    <div className="reg-cell" style={{ width: 110 }}>
+                    <div className="reg-cell" style={{ width: 130, textAlign: "right" }}>
+                      {therFee != null && therFee > 0
+                        ? <span style={{ fontWeight: 700, color: "oklch(0.38 0.12 165)" }}>
+                            {Number(therFee).toLocaleString()} ฿
+                          </span>
+                        : <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>ยังไม่ตั้งค่า</span>}
+                    </div>
+                    <div className="reg-cell" style={{ width: 100, textAlign: "center" }}>
                       {it.minute
                         ? <span style={{ color: "var(--ink-soft)" }}>{it.minute}</span>
                         : <span style={{ color: "var(--ink-faint)", fontSize: 12 }}>—</span>}
