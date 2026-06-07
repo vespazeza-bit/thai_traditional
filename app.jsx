@@ -2390,12 +2390,16 @@ function App() {
         freshQueue.filter(n => n.urgent && !readMap[n.apptId])
           .forEach(n => setTimeout(() => setToast(`⏰ ${n.body}`), 0));
 
-        // Tomorrow alerts (dedup by id)
-        const existingIds = new Set(withoutQueue.map(n => n.id));
+        // Rebuild tomorrow_appt from scratch — never additive so stale entries
+        // are removed when appts change or are cleared (preserves read state).
+        const withoutTomorrow = withoutQueue.filter(n => n.type !== "tomorrow_appt");
+        const readMapTmrw = {};
+        withoutQueue.filter(n => n.type === "tomorrow_appt")
+          .forEach(n => { readMapTmrw[n.apptId] = n.read; });
         const freshTomorrow = buildTomorrowNotifs(verifiedAppts, todayKey)
-          .filter(n => !existingIds.has(n.id));
+          .map(n => ({ ...n, read: readMapTmrw[n.apptId] || false }));
 
-        const next = [...freshQueue, ...freshTomorrow, ...withoutQueue].slice(0, 100);
+        const next = [...freshQueue, ...freshTomorrow, ...withoutTomorrow].slice(0, 100);
         saveNotifs(next);
         return next;
       });
