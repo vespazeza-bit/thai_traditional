@@ -2365,13 +2365,24 @@ function App() {
 
   // ── Notification: periodic refresh (queue countdown + tomorrow alerts) ─────
   useEffect(() => {
+    // Apply the same HOSxP filter the calendar uses — prevents mock/unverified data
+    // appearing in notifications when a date hasn't been loaded from HOSxP yet.
+    const verifiedAppts = therapistStatus === "ok"
+      ? Object.fromEntries(
+          Object.entries(appts).map(([dk, list]) => [
+            dk,
+            (list || []).filter(a => a.id && a.id.includes('_new_')),
+          ])
+        )
+      : appts;
+
     const refresh = () => {
       setNotifications(prev => {
         const withoutQueue = prev.filter(n => n.type !== "upcoming_queue");
         const readMap = {};
         prev.filter(n => n.type === "upcoming_queue").forEach(n => { readMap[n.apptId] = n.read; });
 
-        const freshQueue = buildUpcomingQueueNotifs(appts, todayKey)
+        const freshQueue = buildUpcomingQueueNotifs(verifiedAppts, todayKey)
           .map(n => ({ ...n, read: readMap[n.apptId] || false }));
 
         // Toast for newly urgent items
@@ -2380,7 +2391,7 @@ function App() {
 
         // Tomorrow alerts (dedup by id)
         const existingIds = new Set(withoutQueue.map(n => n.id));
-        const freshTomorrow = buildTomorrowNotifs(appts, todayKey)
+        const freshTomorrow = buildTomorrowNotifs(verifiedAppts, todayKey)
           .filter(n => !existingIds.has(n.id));
 
         const next = [...freshQueue, ...freshTomorrow, ...withoutQueue].slice(0, 100);
@@ -2391,7 +2402,7 @@ function App() {
     refresh();
     const tid = setInterval(refresh, 60000);
     return () => clearInterval(tid);
-  }, [appts, todayKey]);
+  }, [appts, todayKey, therapistStatus]);
 
   // ── Notification: change detection (cancel / reschedule) ──────────────────
   useEffect(() => {
