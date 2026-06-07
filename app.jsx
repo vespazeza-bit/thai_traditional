@@ -2271,6 +2271,7 @@ function App() {
   // Local services สำหรับ BookingForm (fallback ถ้ายังไม่มี HOSxP data)
   const [services, setServices] = useState(SERVICES.map(s => ({ ...s, active: true })));
   const [svcForm, setSvcForm]   = useState(null);
+  const [queueTicket, setQueueTicket] = useState(null);
 
   // ค่าบริการผู้ให้บริการต่อรายการหัตถการ (บันทึก local, ใช้กับทั้ง HOSxP และ local services)
   const [serviceTherFees, setServiceTherFees] = useState(() => {
