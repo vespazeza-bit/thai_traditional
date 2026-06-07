@@ -21,7 +21,7 @@ function buildTomorrowNotifs(appts, todayKey) {
   d.setDate(d.getDate() + 1);
   const tKey = dayKey(d);
   return (appts[tKey] || [])
-    .filter(a => a.status !== "cancelled")
+    .filter(a => a.status !== "cancelled" && a.id && a.id.includes('_new_'))
     .map(a => ({
       id: `tmrw_${a.id}_${tKey}`,
       type: "tomorrow_appt",
@@ -38,7 +38,7 @@ function buildUpcomingQueueNotifs(appts, todayKey) {
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
   return (appts[todayKey] || [])
-    .filter(a => ["booked", "confirmed"].includes(a.status))
+    .filter(a => ["booked", "confirmed"].includes(a.status) && a.id && a.id.includes('_new_'))
     .reduce((acc, a) => {
       const diff = a.start - nowMin;
       if (diff < 0 || diff > 60) return acc;

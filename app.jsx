@@ -2288,7 +2288,7 @@ function App() {
   const [queueDate, setQueueDate] = useState(() => new Date());
 
   // ── Notifications ─────────────────────────────────────────────────────────
-  const [notifications, setNotifications] = useState(() => loadNotifs());
+  const [notifications, setNotifications] = useState(() => loadNotifs().filter(n => n.type === "change"));
   const [notifOpen, setNotifOpen] = useState(false);
   const prevApptsRef = useRef(null);
 
