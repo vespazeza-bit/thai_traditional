@@ -51,11 +51,20 @@ function broadcastQueue(current, history) {
 
 function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
   therapistStatusText, onDisconnect, onUpdateStatus, dateKey,
+  queueDate, onQueueDateChange, todayKey,
   currentQueue, queueHistory, onCallQueue, onRepeatCall }) {
 
   const todayList = useMemo(() => {
     return (appts[dateKey] || []).filter(a => a.status !== "cancelled");
   }, [appts, dateKey]);
+
+  const shiftQDay = (d) => {
+    const nd = new Date(queueDate);
+    nd.setDate(nd.getDate() + d);
+    onQueueDateChange(nd);
+  };
+  const qTd = thaiDate(queueDate);
+  const isQToday = dateKey === todayKey;
 
   const sorted = useMemo(() => {
     const arr = [...todayList].sort((a, b) => (a.queueNo || 999) - (b.queueNo || 999) || a.start - b.start);
@@ -199,7 +208,7 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
       <TopBar userInfo={userInfo} therapistStatus={therapistStatusText} onDisconnect={onDisconnect}>
         <div>
           <div className="page-title">เรียกคิวรับบริการแพทย์แผนไทย</div>
-          <div className="page-sub">บอร์ดปฏิบัติงานรายวัน · วันนี้ {todayList.length} คิว</div>
+          <div className="page-sub">บอร์ดปฏิบัติงานรายวัน · {todayList.length} คิว</div>
         </div>
         <button className="btn-ghost" onClick={openDisplayWindow}
           style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
@@ -208,6 +217,20 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
       </TopBar>
 
       <div className="svc-content" style={{ gap: 12 }}>
+
+        {/* ── Date nav bar ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+          <button className="today-btn" onClick={() => onQueueDateChange(new Date())}
+            style={{ fontSize: 13, padding: "6px 14px" }}>
+            วันนี้
+          </button>
+          <button className="icon-btn" onClick={() => shiftQDay(-1)}><Icon name="chevL" /></button>
+          <div className="date-display">
+            <div className="date-main">{qTd.dow} {qTd.dm}</div>
+            <div className="date-meta">{qTd.full}{isQToday ? " · วันนี้" : ""}</div>
+          </div>
+          <button className="icon-btn" onClick={() => shiftQDay(1)}><Icon name="chevR" /></button>
+        </div>
 
         {/* ── Stats bar ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
@@ -272,7 +295,7 @@ function QueuePage({ appts, therapistsData, activeServices, beds, userInfo,
         {todayList.length === 0 ? (
           <div style={{ textAlign: "center", padding: "64px 0", color: "var(--ink-faint)" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🌿</div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>ยังไม่มีคิววันนี้</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>ยังไม่มีคิว{isQToday ? "วันนี้" : qTd.dm}</div>
             <div style={{ fontSize: 13, marginTop: 6, opacity: .7 }}>คิวจะปรากฏที่นี่เมื่อมีการจองนัดหมาย</div>
           </div>
         ) : (

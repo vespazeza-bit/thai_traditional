@@ -201,13 +201,7 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
-        <div className="brand-mark" style={{ overflow: "hidden", background: "var(--primary)", boxShadow: "0 2px 10px rgba(0,0,0,.18)", border: "2px solid rgba(255,255,255,.6)" }}>
-          <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-        </div>
-        <div className="brand-text">
-          <div className="brand-name" style={{ color: "var(--primary)", fontWeight: 700 }}>ThaiMed Scheduler</div>
-          <div className="brand-sub">ระบบจัดการคิวนัดหมายบริการแพทย์แผนไทย</div>
-        </div>
+        <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", display: "block", objectFit: "contain", borderRadius: 12 }} />
       </div>
 
       <div className="nav-section">เมนูหลัก</div>
@@ -2290,6 +2284,7 @@ function App() {
   // ── Queue call state ──────────────────────────────────────────────────────────
   const [currentQueue, setCurrentQueue] = useState(null);
   const [queueHistory, setQueueHistory] = useState([]);
+  const [queueDate, setQueueDate] = useState(() => new Date());
 
   // ── Effects (must all be before early return) ─────────────────────────────
   useEffect(() => { applyTheme(t.theme); }, [t.theme]);
@@ -2646,8 +2641,9 @@ function App() {
 
   // ── Queue handlers ─────────────────────────────────────────────────────────
   const handleCallQueue = (appt) => {
-    // Mark as arrived — ใช้ todayKey เสมอ ไม่ขึ้นกับวันที่เลือกใน scheduler
-    setAppts(p => ({ ...p, [todayKey]: (p[todayKey] || []).map(a => a.id === appt.id ? { ...a, status: "arrived" } : a) }));
+    // Mark as arrived — ใช้ queueDate (วันที่เลือกในหน้าเรียกคิว)
+    const qk = dayKey(queueDate);
+    setAppts(p => ({ ...p, [qk]: (p[qk] || []).map(a => a.id === appt.id ? { ...a, status: "arrived" } : a) }));
 
     const bedObj = beds.find(b => b.id === appt.bedId);
     const bedLabel = bedObj ? `${bedObj.name}${bedObj.room ? ` ห้อง ${bedObj.room}` : ""}` : null;
@@ -2815,10 +2811,14 @@ function App() {
             therapistStatusText={therapistStatusText}
             onDisconnect={doDisconnect}
             onUpdateStatus={(appt, status) => {
-              setAppts(p => ({ ...p, [todayKey]: (p[todayKey] || []).map(a => a.id === appt.id ? { ...a, status } : a) }));
+              const qk = dayKey(queueDate);
+              setAppts(p => ({ ...p, [qk]: (p[qk] || []).map(a => a.id === appt.id ? { ...a, status } : a) }));
               showToast(`อัปเดตเป็น "${STATUSES[status]?.label || status}"`);
             }}
-            dateKey={todayKey}
+            dateKey={dayKey(queueDate)}
+            queueDate={queueDate}
+            onQueueDateChange={setQueueDate}
+            todayKey={todayKey}
             currentQueue={currentQueue}
             queueHistory={queueHistory}
             onCallQueue={handleCallQueue}

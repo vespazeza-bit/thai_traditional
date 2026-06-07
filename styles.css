@@ -132,16 +132,8 @@ input, select, textarea { font-family: inherit; }
   transition: width .22s ease;
 }
 .sidebar.collapsed { width: 74px; padding: 22px 12px; }
-.brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 22px; }
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 12px; flex: none;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-}
-.brand-name { font-weight: 700; font-size: 15.5px; line-height: 1.2; white-space: nowrap; }
-.brand-text { min-width: 0; }
-.brand-sub { font-size: 10px; color: var(--ink-faint); letter-spacing: .01em; line-height: 1.4; white-space: normal; }
-.sidebar.collapsed .brand-text, .sidebar.collapsed .nav-label,
+.brand { display: block; padding: 4px 8px 20px; }
+.sidebar.collapsed .nav-label,
 .sidebar.collapsed .side-foot-text { display: none; }
 
 .nav-section { font-size: 11px; font-weight: 600; letter-spacing: .08em;
@@ -815,4 +807,61 @@ textarea.input { resize: none; min-height: 70px; }
   font-size: 10.5px;
   color: #666;
   border-top: 1px solid oklch(0.88 0.03 155);
+}
+
+/* ── Therapist Slip ────────────────────────────────────────────── */
+.ther-slip {
+  width: 300px;
+  border: 2px solid oklch(0.42 0.10 258);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  font-family: var(--font);
+  box-shadow: var(--shadow-md, 0 4px 20px rgba(0,0,0,.12));
+}
+.ts-header {
+  background: linear-gradient(135deg, oklch(0.38 0.11 262), oklch(0.52 0.12 254));
+  padding: 14px 18px;
+  color: #fff;
+  text-align: center;
+}
+.ts-band {
+  border-top: 3px dashed oklch(0.65 0.09 254);
+  border-bottom: 3px dashed oklch(0.65 0.09 254);
+  padding: 12px 18px;
+  text-align: center;
+  background: oklch(0.97 0.02 258);
+}
+.ts-qno {
+  font-size: 44px;
+  font-weight: 700;
+  color: oklch(0.38 0.11 262);
+  line-height: 1;
+  letter-spacing: .02em;
+}
+.ts-time {
+  font-size: 22px;
+  font-weight: 700;
+  color: oklch(0.38 0.11 262);
+  margin-top: 4px;
+}
+.ts-body { padding: 10px 16px 14px; }
+.ts-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 5px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+}
+.ts-row:last-child { border-bottom: none; }
+.ts-key { font-size: 11px; color: #888; font-weight: 600; white-space: nowrap; min-width: 72px; }
+.ts-val { font-size: 13px; color: #1a1a1a; font-weight: 600; text-align: right; flex: 1; }
+.ts-footer {
+  background: oklch(0.96 0.018 258);
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 10.5px;
+  color: #555;
+  border-top: 1px solid oklch(0.88 0.03 258);
 }

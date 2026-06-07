@@ -939,12 +939,12 @@ function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose, 
     const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : d;
     return `${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear() + 543}`;
   };
-  const qNum = String(queueNo || 1).padStart(3, '0');
+  const qNum = `A${String(queueNo || 1).padStart(2, '0')}`;
   const dateStr = thaiDate(date || new Date());
   const timeStr = fmtMin(appt.start);
   const timeEnd = fmtMin(appt.start + (s.dur || 60));
 
-  const handlePrint = () => {
+  const handlePrintPatient = () => {
     const el = document.getElementById('queue-ticket-print');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
     <style>
@@ -980,7 +980,6 @@ function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose, 
         </div>
 
         <div className="modal-body" style={{ padding: "24px", display: "flex", justifyContent: "center" }}>
-          {/* ─── Ticket Design ─── */}
           <div id="queue-ticket-print" className="queue-ticket">
             {/* Header */}
             <div className="qt-header">
@@ -1046,11 +1045,12 @@ function QueueTicketModal({ appt, services, therapists, queueNo, date, onClose, 
               กรุณาแสดงบัตรนี้เมื่อมาถึง · กรุณามาก่อนเวลานัด 10 นาที
             </div>
           </div>
+
         </div>
 
         <div className="modal-foot" style={{ gap: 10 }}>
           <button className="btn-ghost" style={{ flex: 1 }} onClick={onClose}>ปิด</button>
-          <button className="btn-primary" style={{ flex: 2 }} onClick={handlePrint}>
+          <button className="btn-primary" style={{ flex: 2 }} onClick={handlePrintPatient}>
             <Icon name="note" size={16} /> พิมพ์บัตรคิว
           </button>
         </div>
