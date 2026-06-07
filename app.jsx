@@ -159,11 +159,12 @@ function LoginScreen({ onConnect, loading, error }) {
 
 // ── Shared top bar ────────────────────────────────────────────────────────────
 
-function TopBar({ userInfo, therapistStatus, onDisconnect, children }) {
+function TopBar({ userInfo, therapistStatus, onDisconnect, children, rightSlot }) {
   return (
     <div className="topbar">
       {children}
       <div className="spacer" />
+      {rightSlot}
       {/* HOSxP session status */}
       <div className="session-bar">
         <div className="session-dot" />
@@ -201,7 +202,7 @@ function Sidebar({ activePage, onNav, collapsed, onToggle }) {
   return (
     <aside className={"sidebar" + (collapsed ? " collapsed" : "")}>
       <div className="brand">
-        <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", display: "block", objectFit: "contain", borderRadius: 12 }} />
+        <img src="thaimed scheduler.png" alt="ThaiMed Scheduler" style={{ width: "100%", display: "block", objectFit: "contain" }} />
       </div>
 
       <div className="nav-section">เมนูหลัก</div>
@@ -2286,6 +2287,11 @@ function App() {
   const [queueHistory, setQueueHistory] = useState([]);
   const [queueDate, setQueueDate] = useState(() => new Date());
 
+  // ── Notifications ─────────────────────────────────────────────────────────
+  const [notifications, setNotifications] = useState(() => loadNotifs());
+  const [notifOpen, setNotifOpen] = useState(false);
+  const prevApptsRef = useRef(null);
+
   // ── Effects (must all be before early return) ─────────────────────────────
   useEffect(() => { applyTheme(t.theme); }, [t.theme]);
   useEffect(() => { document.documentElement.dataset.density = t.density; }, [t.density]);
@@ -2357,8 +2363,89 @@ function App() {
       THERAPISTS.find(t => t.id === id);
   }, [therapistsData]);
 
+  // ── Notification: periodic refresh (queue countdown + tomorrow alerts) ─────
+  useEffect(() => {
+    const refresh = () => {
+      setNotifications(prev => {
+        const withoutQueue = prev.filter(n => n.type !== "upcoming_queue");
+        const readMap = {};
+        prev.filter(n => n.type === "upcoming_queue").forEach(n => { readMap[n.apptId] = n.read; });
+
+        const freshQueue = buildUpcomingQueueNotifs(appts, todayKey)
+          .map(n => ({ ...n, read: readMap[n.apptId] || false }));
+
+        // Toast for newly urgent items
+        freshQueue.filter(n => n.urgent && !readMap[n.apptId])
+          .forEach(n => setTimeout(() => setToast(`⏰ ${n.body}`), 0));
+
+        // Tomorrow alerts (dedup by id)
+        const existingIds = new Set(withoutQueue.map(n => n.id));
+        const freshTomorrow = buildTomorrowNotifs(appts, todayKey)
+          .filter(n => !existingIds.has(n.id));
+
+        const next = [...freshQueue, ...freshTomorrow, ...withoutQueue].slice(0, 100);
+        saveNotifs(next);
+        return next;
+      });
+    };
+    refresh();
+    const tid = setInterval(refresh, 60000);
+    return () => clearInterval(tid);
+  }, [appts, todayKey]);
+
+  // ── Notification: change detection (cancel / reschedule) ──────────────────
+  useEffect(() => {
+    if (prevApptsRef.current === null) {
+      const snap = {};
+      Object.values(appts).flat().forEach(a => { snap[a.id] = { status: a.status, start: a.start }; });
+      prevApptsRef.current = snap;
+      return;
+    }
+    const changeNotifs = [];
+    Object.entries(appts).forEach(([dk, dayAppts]) => {
+      (dayAppts || []).forEach(a => {
+        const p = prevApptsRef.current[a.id];
+        if (!p) { prevApptsRef.current[a.id] = { status: a.status, start: a.start }; return; }
+        if (p.status !== "cancelled" && a.status === "cancelled") {
+          changeNotifs.push({
+            id: `chg_${a.id}_${Date.now()}`,
+            type: "change", title: "ยกเลิกนัด",
+            body: `${a.customer || 'ผู้รับบริการ'} · ${fmtMin(p.start)}`,
+            changeDetail: `คิว ${fmtMin(p.start)} ว่างแล้ว`,
+            read: false, urgent: false, at: Date.now(),
+          });
+        } else if (p.start !== a.start && a.status !== "cancelled") {
+          changeNotifs.push({
+            id: `chg_${a.id}_${Date.now()}`,
+            type: "change", title: "เลื่อนนัด",
+            body: `${a.customer || 'ผู้รับบริการ'}`,
+            changeDetail: `${fmtMin(p.start)} → ${fmtMin(a.start)}`,
+            read: false, urgent: false, at: Date.now(),
+          });
+        }
+        prevApptsRef.current[a.id] = { status: a.status, start: a.start };
+      });
+    });
+    if (changeNotifs.length > 0) {
+      setNotifications(prev => {
+        const next = [...changeNotifs, ...prev].slice(0, 100);
+        saveNotifs(next); return next;
+      });
+    }
+  }, [appts]);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+
+  // ── Notification handlers ──────────────────────────────────────────────────
+  const markNotifRead = (id) => setNotifications(prev => {
+    const next = prev.map(n => n.id === id ? { ...n, read: true } : n);
+    saveNotifs(next); return next;
+  });
+  const markAllRead = () => setNotifications(prev => {
+    const next = prev.map(n => ({ ...n, read: true }));
+    saveNotifs(next); return next;
+  });
 
   const doTestApi = async () => {
     setTestResult(null);
@@ -2904,7 +2991,22 @@ function App() {
         {/* ── Schedule page (default) ── */}
         {activePage === "sched" && (
           <>
-            <TopBar userInfo={bms.userInfo} therapistStatus={therapistStatusText} onDisconnect={doDisconnect}>
+            <TopBar userInfo={bms.userInfo} therapistStatus={therapistStatusText} onDisconnect={doDisconnect}
+              rightSlot={
+                <div style={{ position: "relative" }}>
+                  <NotifBell notifs={notifications} onClick={() => setNotifOpen(p => !p)} />
+                  {notifOpen && (
+                    <NotificationPanel
+                      notifs={notifications}
+                      onRead={markNotifRead}
+                      onReadAll={markAllRead}
+                      onClose={() => setNotifOpen(false)}
+                      onGotoQueue={() => { setNotifOpen(false); setActivePage("queue"); }}
+                    />
+                  )}
+                </div>
+              }
+            >
               <div>
                 <div className="page-title">ตารางให้บริการแพทย์แผนไทย</div>
                 <div className="page-sub">จัดการคิวและนัดหมายประจำวัน</div>
