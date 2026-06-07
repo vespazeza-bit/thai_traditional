@@ -132,7 +132,7 @@ input, select, textarea { font-family: inherit; }
   transition: width .22s ease;
 }
 .sidebar.collapsed { width: 74px; padding: 22px 12px; }
-.brand { display: block; padding: 4px 8px 20px; }
+.brand { display: block; padding: 8px 8px 16px; }
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .side-foot-text { display: none; }
 
